@@ -1,6 +1,6 @@
 # PRD — Sistema de Control de Inventario Diario
 
-**Versión:** 3.0
+**Versión:** 4.0
 **Fecha:** 2026-03-20
 **Estado:** Activo
 
@@ -42,12 +42,29 @@ Los encargados de puntos de venta llevan el control de inventario de forma manua
 
 ---
 
-## 5. Conceptos Clave
+## 5. Principios de Diseño
+
+### KISS — Keep It Simple
+
+Cada funcionalidad debe ser comprensible y operable sin capacitación. Si una acción requiere más de dos pasos para completarse, debe simplificarse. La herramienta debe poder ser usada por cualquier encargado de turno desde el primer día.
+
+> Aplicación concreta: el reordenamiento de productos se hace con botones simples de subir/bajar, no con arrastrar y soltar. El catálogo se gestiona en un único lugar, no en dos pantallas distintas.
+
+### YAGNI — You Aren't Gonna Need It
+
+No se incluye ninguna funcionalidad que no tenga un uso claro e inmediato en el flujo diario del negocio. Las ideas útiles pero no urgentes se registran como candidatas futuras, no se implementan de forma anticipada.
+
+> Aplicación concreta: no hay roles de usuario, no hay alertas automáticas, no hay integración con otros sistemas — porque ninguna de estas cosas forma parte del problema actual que se está resolviendo.
+
+---
+
+## 6. Conceptos Clave
 
 | Concepto | Definición |
 |---|---|
 | **Jornada** | Período de operación de un día, identificado por fecha y tabla |
 | **Tabla** | Unidad de inventario independiente (puede representar un turno, vendedor o sucursal) |
+| **Catálogo** | Lista permanente de productos del negocio, compartida por todas las tablas |
 | **Stock inicial** | Unidades disponibles al abrir la jornada |
 | **Venta** | Unidades despachadas durante la jornada |
 | **Stock esperado** | Cantidad de unidades que debería quedar al cierre, calculada a partir del stock inicial y las ventas registradas |
@@ -58,82 +75,95 @@ Los encargados de puntos de venta llevan el control de inventario de forma manua
 
 ---
 
-## 6. Funcionalidades
+## 7. Funcionalidades
 
-### 6.1 Gestión de Tablas
+### 7.1 Catálogo de Productos *(fuente de verdad única)*
 
-- El sistema permite operar con **múltiples tablas** independientes (ej. Tabla 1, Tabla 2, turno mañana, turno tarde)
-- El encargado puede **crear, renombrar y eliminar** tablas según la organización del negocio
-- Cada tabla conserva su propio inventario activo y su historial de jornadas
-- El cambio de tabla guarda automáticamente el estado actual antes de cambiar
+El catálogo es **global y compartido** por todas las tablas. Se configura una sola vez y se mantiene desde un único lugar.
 
-### 6.2 Registro de Jornada
+#### Primera puesta en marcha
+- La primera vez que se abre el sistema, se presenta una pantalla de configuración donde el encargado ingresa todos los productos: nombre y precio de cada uno
+- Una vez completado, el catálogo queda guardado de forma permanente
+- En los usos posteriores, el sistema entra directamente al registro de jornada
 
-- Cada jornada está asociada a una **fecha específica** (por defecto, la del día actual)
-- El encargado registra para cada producto: stock inicial, unidades vendidas, precio y stock final contado
-- La lista de productos es **configurable**: se pueden agregar, eliminar y renombrar productos según el catálogo del negocio
-- Los cambios se guardan automáticamente mientras se trabaja, sin riesgo de perder información
+#### Mantenimiento continuo
+- Los productos permanecen en el catálogo hasta que el encargado decida eliminarlos
+- La eliminación es **individual**: se puede quitar un producto sin afectar al resto
+- Se pueden agregar nuevos productos en cualquier momento
+- El nombre y precio de cada producto son editables en cualquier momento
+- **Limpiar una jornada no afecta al catálogo** — el catálogo es independiente de las jornadas
 
-### 6.3 Cálculo Automático
+#### Organización
+- El encargado puede cambiar el orden de los productos usando botones de **subir / bajar** *(KISS: sin arrastrar)*
+- Existe la opción de ordenar el catálogo **alfabéticamente** con una sola acción
+- El orden se conserva entre jornadas
 
-- El **importe** por producto se calcula automáticamente en cuanto se ingresan venta y precio
-- El **total del día** se actualiza en tiempo real conforme se completan los datos
-- Al pie de la jornada se muestra un **detalle** de los productos que generaron ingresos
-
-### 6.4 Detección de Discrepancias
-
-- Al ingresar el stock final físico, el sistema lo compara con el stock esperado
-- Si hay diferencia, se muestra una **alerta** indicando el producto y la magnitud de la diferencia (positiva o negativa)
-- Las discrepancias positivas indican más unidades de las esperadas; las negativas, menos (posible pérdida o venta no registrada)
-
-### 6.5 Cierre y Guardado de Jornada
-
-- El encargado cierra la jornada con la acción **Guardar día**
-- Los datos quedan registrados en el **historial** con su fecha y nombre de tabla
-- Si una jornada ya guardada necesita corregirse, puede **reabrirse para edición**; al guardar de nuevo sobreescribe el registro anterior
-- La acción **Limpiar** reinicia la jornada activa sin afectar el historial
-
-### 6.6 Historial de Jornadas
-
-- El historial muestra todas las jornadas guardadas, ordenadas de más reciente a más antigua
-- Para cada entrada se visualiza: fecha, tabla, total del día, detalle de productos e importe, y discrepancias registradas
-- Las jornadas del historial pueden **consultarse, editarse o eliminarse**
-
-### 6.7 Exportación de Datos
-
-| Formato | Contenido | Propósito |
-|---|---|---|
-| **Hoja de cálculo** | Todas las filas de la jornada con tabla, fecha, producto, cantidades e importes | Análisis externo, archivo, contabilidad |
-| **PDF** | Vista limpia de la jornada lista para imprimir o archivar digitalmente | Reporte impreso o archivo físico |
-
-### 6.8 Gestión del Catálogo de Productos
-
-#### Configuración inicial
-
-- La **primera vez que se usa el sistema**, se presenta una pantalla de configuración donde el encargado ingresa todos los productos del negocio: nombre y precio de cada uno
-- Este catálogo queda guardado de forma permanente y se reutiliza en cada nueva jornada sin necesidad de volver a ingresarlo
-- Una vez completada la configuración inicial, el sistema entra directamente al registro de jornada en los usos posteriores
-
-#### Mantenimiento del catálogo
-
-- Los productos se conservan en el catálogo **hasta que el encargado decida eliminarlos**
-- La eliminación es **individual**: se puede quitar un producto específico sin afectar al resto
-- Se pueden **agregar nuevos productos** en cualquier momento; quedarán disponibles para las jornadas siguientes
-- Los **precios y nombres** de cada producto son editables en cualquier momento
-
-#### Organización del catálogo
-
-- El encargado puede **reorganizar el orden** en que los productos aparecen en la tabla de inventario, arrastrándolos a la posición deseada
-- Existe la opción de **ordenar el catálogo alfabéticamente** con una sola acción
-- El orden personalizado se conserva entre jornadas
-
-#### Exportación e importación
-
-- El catálogo completo puede exportarse como archivo de configuración para respaldo o para replicarlo en otra tabla
+#### Exportación
+- El catálogo puede exportarse como archivo de configuración para respaldo o para replicarlo en otro dispositivo
 
 ---
 
-## 7. Flujo de Uso Típico
+### 7.2 Gestión de Tablas
+
+- El sistema permite operar con **múltiples tablas** independientes (ej. turno mañana, turno tarde, sucursal)
+- El encargado puede **crear, renombrar y eliminar** tablas
+- Cada tabla tiene su propia jornada activa e historial, pero **comparte el catálogo global**
+- Al cambiar de tabla, el estado actual se guarda automáticamente
+
+---
+
+### 7.3 Registro de Jornada
+
+- Cada jornada está asociada a una **fecha específica** (por defecto, la del día actual)
+- Para cada producto del catálogo, el encargado registra: stock inicial, unidades vendidas y stock final contado
+- El precio viene precargado desde el catálogo y puede ajustarse puntualmente si es necesario
+- Los datos se guardan automáticamente mientras se trabaja
+
+---
+
+### 7.4 Cálculo Automático
+
+- El importe por producto se calcula en cuanto se ingresan venta y precio
+- El total del día se actualiza en tiempo real
+- Al pie de la jornada se muestra el detalle de los productos que generaron ingresos
+
+---
+
+### 7.5 Detección de Discrepancias
+
+- Al ingresar el stock final, el sistema lo compara con el stock esperado
+- Si hay diferencia, se muestra una alerta con el nombre del producto y la magnitud de la diferencia
+- Discrepancia positiva: más unidades de las esperadas
+- Discrepancia negativa: menos unidades (posible pérdida o venta no registrada)
+
+---
+
+### 7.6 Cierre y Guardado de Jornada
+
+- El encargado cierra la jornada con **Guardar día** — queda registrada en el historial con fecha y tabla
+- Si necesita corregirse, la jornada puede **reabrirse para edición**; al guardar de nuevo sobreescribe el registro anterior
+- **Limpiar** reinicia únicamente los datos de la jornada activa; el catálogo y el historial no se ven afectados
+
+---
+
+### 7.7 Historial de Jornadas
+
+- Lista de todas las jornadas guardadas, ordenadas de más reciente a más antigua
+- Cada entrada muestra: fecha, tabla, total del día, detalle por producto y discrepancias
+- Las jornadas pueden **consultarse, editarse o eliminarse**
+
+---
+
+### 7.8 Exportación de Datos
+
+| Formato | Contenido | Propósito |
+|---|---|---|
+| **Hoja de cálculo** | Jornada completa con tabla, fecha, producto, cantidades e importes | Análisis externo, archivo, contabilidad |
+| **PDF** | Vista limpia lista para imprimir o archivar | Reporte impreso o archivo físico |
+
+---
+
+## 8. Flujo de Uso Típico
 
 **En el primer uso (una sola vez):**
 1. Ingresar el catálogo completo de productos con nombre y precio
@@ -151,39 +181,40 @@ Los encargados de puntos de venta llevan el control de inventario de forma manua
 **Al cerrar la jornada:**
 
 5. Contar físicamente el stock restante y registrar el stock final
-6. Revisar las discrepancias detectadas e investigar las diferencias
+6. Revisar las discrepancias y corregir lo necesario
 7. Guardar la jornada en el historial
-8. Exportar el reporte del día si se necesita (hoja de cálculo o PDF)
+8. Exportar el reporte si se necesita
 9. Limpiar la jornada para dejar lista la tabla para el día siguiente
 
 ---
 
-## 8. Restricciones Operativas
+## 9. Restricciones Operativas
 
-- La herramienta opera **sin conexión a internet**; no depende de ningún servicio externo
+- Opera **sin conexión a internet**; no depende de ningún servicio externo
 - Los datos se almacenan en el dispositivo donde se usa — no se comparten automáticamente entre equipos
-- No hay autenticación ni control de acceso; cualquier persona con acceso al dispositivo puede operar la herramienta
-- Se recomienda **exportar el reporte en hoja de cálculo periódicamente** como respaldo ante pérdida accidental de datos
+- No hay autenticación ni control de acceso
+- Se recomienda **exportar la hoja de cálculo periódicamente** como respaldo
 
 ---
 
-## 9. Fuera de Alcance
+## 10. Fuera de Alcance
 
-| Funcionalidad | Motivo de exclusión |
+| Funcionalidad | Motivo |
 |---|---|
-| Sincronización entre dispositivos | La herramienta es local por diseño; compartir datos requeriría una plataforma centralizada |
-| Control de usuarios y permisos | No existe distinción de roles; el acceso es único por dispositivo |
-| Alertas automáticas (correo, mensajes) | No se contempla comunicación activa hacia el usuario fuera de la herramienta |
-| Integración con facturación o contabilidad | Se cubre mediante exportación manual de reportes |
+| Sincronización entre dispositivos | Fuera del problema actual *(YAGNI)* |
+| Control de usuarios y permisos | No existe distinción de roles en el flujo actual *(YAGNI)* |
+| Alertas automáticas (correo, mensajes) | No forma parte del flujo diario del encargado *(YAGNI)* |
+| Integración con facturación o contabilidad | La exportación manual cubre la necesidad actual *(YAGNI)* |
+| Arrastrar productos para reordenar | Los botones subir/bajar son suficientes y más simples *(KISS)* |
 
 ---
 
-## 10. Historial de Versiones
+## 11. Historial de Versiones
 
 | Versión | Capacidades incorporadas |
 |---|---|
 | 1.0 | Registro de inventario, cálculo de importes y detección de discrepancias |
 | 1.1 | Jornadas con fecha, historial de días, guardado automático |
-| 2.0 | Catálogo de productos configurable, exportación a hoja de cálculo, impresión, importación de catálogo |
-| 3.0 | Múltiples tablas por negocio, corrección de jornadas cerradas, exportación a PDF |
-| 4.0 | Configuración inicial guiada del catálogo, eliminación individual de productos, reordenamiento manual y ordenamiento alfabético |
+| 2.0 | Catálogo configurable, exportación a hoja de cálculo, impresión, importación de catálogo |
+| 3.0 | Múltiples tablas, corrección de jornadas cerradas, exportación a PDF |
+| 4.0 | Catálogo global único, configuración inicial guiada, eliminación individual, reordenamiento, ordenamiento alfabético. Aplicación de principios KISS y YAGNI |
