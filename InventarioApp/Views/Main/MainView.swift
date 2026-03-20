@@ -38,7 +38,7 @@ struct MainView: View {
     @ViewBuilder
     private func mainContent(_ vm: JornadaViewModel) -> some View {
         VStack(spacing: 0) {
-            // Table selector
+            // Table selector (fixed at top, not scrollable)
             TableSelectorBar(vm: vm)
 
             // Edit banner (when editing historical jornada)
@@ -51,19 +51,24 @@ struct MainView: View {
                 backupBanner(vm)
             }
 
-            // Action buttons
-            ActionButtonsView(
-                vm: vm,
-                onShowCatalog: { showCatalog = true },
-                onExportCSV: { exportCSV(vm) },
-                onExportPDF: { exportPDF(vm) }
-            )
+            // Single ScrollView for all content
+            ScrollView {
+                VStack(spacing: 0) {
+                    // Jornada content (date, entries, summary)
+                    JornadaView(vm: vm)
 
-            // Jornada content
-            JornadaView(vm: vm)
+                    // Action buttons (below the jornada data)
+                    ActionButtonsView(
+                        vm: vm,
+                        onShowCatalog: { showCatalog = true },
+                        onExportCSV: { exportCSV(vm) },
+                        onExportPDF: { exportPDF(vm) }
+                    )
 
-            // History
-            HistoryListView(vm: vm)
+                    // History
+                    HistoryListView(vm: vm)
+                }
+            }
         }
         .sheet(isPresented: $showCatalog) {
             CatalogView()

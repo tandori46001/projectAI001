@@ -25,35 +25,33 @@ struct JornadaView: View {
 
             Divider()
 
-            // Entry rows
-            ScrollView {
-                LazyVStack(spacing: 0) {
-                    ForEach(vm.entries, id: \.id) { entry in
-                        VStack(spacing: 0) {
-                            JornadaEntryRow(
-                                entry: entry,
-                                onUpdate: { vm.updateEntry(entry) },
-                                onDelete: { vm.deleteEntry(entry) }
-                            )
-                            .padding(.horizontal, 8)
-                            Divider()
-                        }
+            // Entry rows (no inner ScrollView — parent handles scrolling)
+            VStack(spacing: 0) {
+                ForEach(vm.entries, id: \.id) { entry in
+                    VStack(spacing: 0) {
+                        JornadaEntryRow(
+                            entry: entry,
+                            onUpdate: { vm.updateEntry(entry) },
+                            onDelete: { vm.deleteEntry(entry) }
+                        )
+                        .padding(.horizontal, 8)
+                        Divider()
                     }
                 }
-
-                // Add row button
-                Button(Strings.addRow) {
-                    vm.addEntry()
-                }
-                .font(.subheadline)
-                .foregroundColor(AppColors.primary)
-                .padding(.vertical, 8)
-
-                // Summary
-                summarySection
-                    .padding(.horizontal)
-                    .padding(.bottom, 16)
             }
+
+            // Add row button
+            Button(Strings.addRow) {
+                vm.addEntry()
+            }
+            .font(.subheadline)
+            .foregroundColor(AppColors.primary)
+            .padding(.vertical, 8)
+
+            // Summary
+            summarySection
+                .padding(.horizontal)
+                .padding(.bottom, 16)
         }
     }
 
