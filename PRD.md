@@ -50,11 +50,11 @@ Los encargados de puntos de venta llevan el control de inventario de forma manua
 | **Tabla** | Unidad de inventario independiente (puede representar un turno, vendedor o sucursal) |
 | **Stock inicial** | Unidades disponibles al abrir la jornada |
 | **Venta** | Unidades despachadas durante la jornada |
-| **Stock esperado** | Resultado de restar las ventas al stock inicial (`Inicial − Venta`) |
+| **Stock esperado** | Cantidad de unidades que debería quedar al cierre, calculada a partir del stock inicial y las ventas registradas |
 | **Stock final** | Unidades contadas físicamente al cerrar la jornada |
-| **Discrepancia** | Diferencia entre el stock final físico y el esperado. Indica posibles pérdidas, errores de conteo o ventas no registradas |
-| **Importe** | Valor monetario de las ventas de un producto (`Venta × Precio`) |
-| **Total del día** | Suma de importes de todos los productos de la jornada |
+| **Discrepancia** | Diferencia entre el stock final físico y el stock esperado. Indica posibles pérdidas, errores de conteo o ventas no registradas |
+| **Importe** | Valor monetario generado por las ventas de un producto durante la jornada |
+| **Total del día** | Suma de los importes de todos los productos de la jornada |
 
 ---
 
@@ -103,43 +103,67 @@ Los encargados de puntos de venta llevan el control de inventario de forma manua
 
 | Formato | Contenido | Propósito |
 |---|---|---|
-| **CSV** | Todas las filas de la jornada con tabla, fecha, producto, cantidades e importes | Análisis externo, archivo, contabilidad |
-| **PDF** | Vista limpia de la tabla lista para imprimir o archivar digitalmente | Reporte impreso o archivo físico |
+| **Hoja de cálculo** | Todas las filas de la jornada con tabla, fecha, producto, cantidades e importes | Análisis externo, archivo, contabilidad |
+| **PDF** | Vista limpia de la jornada lista para imprimir o archivar digitalmente | Reporte impreso o archivo físico |
 
-### 6.8 Configuración de Productos
+### 6.8 Gestión del Catálogo de Productos
 
-- El catálogo de productos puede exportarse e importarse como lista estructurada
-- Permite replicar rápidamente la configuración de una tabla a otra, o actualizar precios en bloque
+#### Configuración inicial
+
+- La **primera vez que se usa el sistema**, se presenta una pantalla de configuración donde el encargado ingresa todos los productos del negocio: nombre y precio de cada uno
+- Este catálogo queda guardado de forma permanente y se reutiliza en cada nueva jornada sin necesidad de volver a ingresarlo
+- Una vez completada la configuración inicial, el sistema entra directamente al registro de jornada en los usos posteriores
+
+#### Mantenimiento del catálogo
+
+- Los productos se conservan en el catálogo **hasta que el encargado decida eliminarlos**
+- La eliminación es **individual**: se puede quitar un producto específico sin afectar al resto
+- Se pueden **agregar nuevos productos** en cualquier momento; quedarán disponibles para las jornadas siguientes
+- Los **precios y nombres** de cada producto son editables en cualquier momento
+
+#### Organización del catálogo
+
+- El encargado puede **reorganizar el orden** en que los productos aparecen en la tabla de inventario, arrastrándolos a la posición deseada
+- Existe la opción de **ordenar el catálogo alfabéticamente** con una sola acción
+- El orden personalizado se conserva entre jornadas
+
+#### Exportación e importación
+
+- El catálogo completo puede exportarse como archivo de configuración para respaldo o para replicarlo en otra tabla
 
 ---
 
 ## 7. Flujo de Uso Típico
 
-```
-Al abrir la jornada:
-  1. Seleccionar la tabla correspondiente (turno, sucursal, etc.)
-  2. Confirmar la fecha del día
-  3. Registrar el stock inicial de cada producto
+**En el primer uso (una sola vez):**
+1. Ingresar el catálogo completo de productos con nombre y precio
+2. El sistema guarda el catálogo y queda listo para operar
 
-Durante la jornada:
-  4. Ir registrando las ventas conforme ocurren (o al cierre)
+**Al abrir la jornada:**
+1. Seleccionar la tabla correspondiente (turno, sucursal, vendedor)
+2. Confirmar la fecha del día
+3. Registrar el stock inicial de cada producto
 
-Al cerrar la jornada:
-  5. Contar físicamente el stock restante e ingresar el stock final
-  6. Revisar las discrepancias detectadas e investigar diferencias
-  7. Guardar la jornada en el historial
-  8. Exportar el reporte si se necesita (CSV o PDF)
-  9. Limpiar para dejar lista la tabla para el día siguiente
-```
+**Durante la jornada:**
+
+4. Registrar las ventas conforme ocurren, o en bloque al cierre
+
+**Al cerrar la jornada:**
+
+5. Contar físicamente el stock restante y registrar el stock final
+6. Revisar las discrepancias detectadas e investigar las diferencias
+7. Guardar la jornada en el historial
+8. Exportar el reporte del día si se necesita (hoja de cálculo o PDF)
+9. Limpiar la jornada para dejar lista la tabla para el día siguiente
 
 ---
 
 ## 8. Restricciones Operativas
 
-- La herramienta opera **sin conexión a internet**; los datos se almacenan localmente en el dispositivo
-- Los datos son locales al navegador y dispositivo — no se comparten automáticamente entre equipos
+- La herramienta opera **sin conexión a internet**; no depende de ningún servicio externo
+- Los datos se almacenan en el dispositivo donde se usa — no se comparten automáticamente entre equipos
 - No hay autenticación ni control de acceso; cualquier persona con acceso al dispositivo puede operar la herramienta
-- Los datos se pierden si se borra el historial del navegador; se recomienda exportar CSV periódicamente como respaldo
+- Se recomienda **exportar el reporte en hoja de cálculo periódicamente** como respaldo ante pérdida accidental de datos
 
 ---
 
@@ -147,18 +171,19 @@ Al cerrar la jornada:
 
 | Funcionalidad | Motivo de exclusión |
 |---|---|
-| Sincronización entre dispositivos | Requiere servidor y conexión a internet |
-| Control de usuarios y permisos | Requiere sistema de autenticación |
-| Alertas automáticas (correo, notificaciones) | Requiere infraestructura externa |
-| Integración con sistemas de facturación o contabilidad | Fuera del alcance de una herramienta local |
+| Sincronización entre dispositivos | La herramienta es local por diseño; compartir datos requeriría una plataforma centralizada |
+| Control de usuarios y permisos | No existe distinción de roles; el acceso es único por dispositivo |
+| Alertas automáticas (correo, mensajes) | No se contempla comunicación activa hacia el usuario fuera de la herramienta |
+| Integración con facturación o contabilidad | Se cubre mediante exportación manual de reportes |
 
 ---
 
 ## 10. Historial de Versiones
 
-| Versión | Mejoras |
+| Versión | Capacidades incorporadas |
 |---|---|
-| 1.0 | Registro básico de inventario con cálculo manual |
-| 1.1 | Fecha de jornada, historial, cálculo automático al escribir |
-| 2.0 | Catálogo dinámico, exportación CSV, impresión, configuración de productos |
-| 3.0 | Múltiples tablas, edición de jornadas cerradas, exportación PDF |
+| 1.0 | Registro de inventario, cálculo de importes y detección de discrepancias |
+| 1.1 | Jornadas con fecha, historial de días, guardado automático |
+| 2.0 | Catálogo de productos configurable, exportación a hoja de cálculo, impresión, importación de catálogo |
+| 3.0 | Múltiples tablas por negocio, corrección de jornadas cerradas, exportación a PDF |
+| 4.0 | Configuración inicial guiada del catálogo, eliminación individual de productos, reordenamiento manual y ordenamiento alfabético |
