@@ -1,160 +1,164 @@
-# PRD — Inventario Editable
+# PRD — Sistema de Control de Inventario Diario
 
-**Versión:** 2.0
+**Versión:** 3.0
 **Fecha:** 2026-03-20
-**Archivo de implementación:** `inventario.html`
+**Estado:** Activo
 
 ---
 
 ## 1. Resumen del Producto
 
-Herramienta de control de inventario diario para un punto de venta de productos varios (dulces, bebidas, artículos). Permite registrar el stock inicial, las unidades vendidas y el stock final de cada producto, calculando automáticamente el importe generado y detectando discrepancias entre el conteo físico final y el esperado.
+Herramienta de control de inventario diario para puntos de venta de productos varios (dulces, bebidas, artículos de consumo). Permite al encargado registrar el movimiento de stock de cada producto por jornada, calcular automáticamente los ingresos del día y detectar diferencias entre el inventario físico real y el esperado.
 
 ---
 
 ## 2. Problema
 
-El encargado del punto de venta necesita llevar control diario de su inventario sin depender de hojas de cálculo externas ni conexión a internet. Actualmente el proceso es manual y propenso a errores aritméticos y de conteo.
+Los encargados de puntos de venta llevan el control de inventario de forma manual, lo que genera:
+
+- Errores aritméticos en el cálculo de importes y totales
+- Pérdida de registros de jornadas anteriores
+- Dificultad para detectar pérdidas o diferencias de stock
+- Tiempo invertido en tareas repetitivas y de bajo valor
 
 ---
 
 ## 3. Usuarios
 
-| Perfil | Descripción |
-|---|---|
-| Encargado de tienda | Opera la herramienta diariamente para registrar ventas y verificar inventario |
-
----
-
-## 4. Objetivos
-
-- Registrar el inventario inicial y final de cada producto en una jornada **asociada a una fecha específica**
-- Calcular automáticamente el importe vendido por producto y el total del día
-- Detectar y alertar discrepancias entre el stock final físico y el calculado
-- Persistir los datos entre recargas de página para no perder trabajo en curso
-- **Mantener un historial de jornadas** por fecha, consultable desde la misma herramienta
-
----
-
-## 5. Funcionalidades Actuales (v1.0)
-
-### 5.1 Fecha de Jornada
-
-- Cada sesión de inventario tiene asociada una **fecha específica** (día/mes/año)
-- La fecha se muestra y es editable en la parte superior de la tabla
-- Por defecto se propone la fecha actual del sistema
-- La fecha forma parte de los datos guardados y es la clave del historial
-
-### 5.2 Tabla de Inventario
-
-| Campo | Tipo | Descripción |
+| Perfil | Rol | Necesidades principales |
 |---|---|---|
-| Producto | Texto editable | Nombre del producto; editable directamente en la celda |
-| Inicial | Número | Unidades en stock al inicio de la jornada |
-| Venta | Número | Unidades vendidas durante la jornada |
-| Precio | Número | Precio unitario de venta |
-| Importe | Número (solo lectura) | Calculado automáticamente: `Venta × Precio` |
-| Final | Número | Stock físico contado al cierre; se contrasta con el calculado |
-
-**Productos precargados (26):** Apazaguety, Codito, Aopa, Dulce, Trío 4, Llenita, Turrones, Zips, Primuo, Junil, Biscuit, Adria, Chupchups, Lil grand, Chambelona, Caramelo, Jabas, Whisky, Lunitita, Leche condens, Zagoth, Vino, Fosforera, Ref pagt, Bases, Gito.
-
-### 5.3 Cálculo en Tiempo Real
-
-- El importe por fila se recalcula automáticamente al modificar cualquier campo
-- El Total Importe se actualiza de forma inmediata sin necesidad de presionar botón
-
-### 5.4 Detalle de Importe
-
-Muestra al pie de la tabla la lista de productos con importe mayor a cero, con su valor individual.
-
-### 5.5 Detección de Discrepancias
-
-- Compara `Final` (ingresado manualmente) con `Inicial - Venta` (calculado)
-- Si hay diferencia, la muestra en rojo indicando el producto y la magnitud (`+N` o `-N`)
-- La comparación usa redondeo a 2 decimales para evitar falsos positivos por precisión de punto flotante
-
-### 5.6 Persistencia Local
-
-- Los datos se guardan en `localStorage` cada vez que el usuario modifica algún campo
-- Al recargar la página, los datos de la jornada activa se restauran automáticamente
-- El botón **Limpiar** borra la jornada activa (con confirmación previa) y reinicia la tabla
-
-### 5.7 Historial de Jornadas
-
-- Al cerrar una jornada (o explícitamente con un botón **Guardar día**), los datos del día quedan registrados en el historial indexado por fecha
-- El historial se almacena en `localStorage` y persiste entre sesiones
-- Una sección desplegable **Historial** muestra la lista de fechas registradas, ordenadas de más reciente a más antigua
-- Al seleccionar una fecha del historial se puede consultar el resumen de esa jornada (solo lectura): productos vendidos, importes, total del día y discrepancias registradas
-- No se permite editar jornadas cerradas; solo consulta
-
-**Estructura de datos del historial (localStorage):**
-```json
-{
-  "inventario_historial": [
-    {
-      "fecha": "2026-03-20",
-      "totalImporte": 4500.00,
-      "filas": [
-        { "producto": "Whisky", "inicial": 5, "venta": 2, "precio": 2000, "importe": 4000, "final": 3 },
-        ...
-      ]
-    }
-  ]
-}
-```
+| Encargado de turno | Usuario principal | Registrar ventas y stock al inicio y cierre de jornada |
+| Dueño / Supervisor | Consulta | Revisar historial de jornadas y detectar irregularidades |
 
 ---
 
-## 6. Flujo de Uso Típico
+## 4. Objetivos del Producto
 
-```
-1. Abrir inventario.html en el navegador
-2. Confirmar o ajustar la fecha de la jornada (por defecto: hoy)
-3. Ingresar stock Inicial de cada producto al comenzar la jornada
-4. Durante o al final del día, ingresar Venta de cada producto
-5. Opcionalmente contar físicamente y registrar el stock Final
-6. Revisar Discrepancias — investigar y corregir diferencias
-7. Presionar "Guardar día" para cerrar la jornada y registrarla en el historial
-8. Para consultar días anteriores, abrir la sección "Historial" y seleccionar la fecha
-9. Para iniciar una nueva jornada en blanco, presionar "Limpiar"
-```
+1. **Eliminar errores de cálculo** — los importes y totales se calculan automáticamente
+2. **Agilizar el cierre de jornada** — el encargado solo registra cantidades; el sistema hace el resto
+3. **Detectar diferencias de stock** — alertar cuando el conteo físico no coincide con lo esperado
+4. **Mantener memoria histórica** — conservar el registro de cada jornada para consulta posterior
+5. **Operar de forma autónoma** — sin necesidad de conexión a internet ni sistemas externos
 
 ---
 
-## 7. Restricciones Técnicas
+## 5. Conceptos Clave
 
-- Aplicación de archivo único (`inventario.html`) — sin dependencias externas ni servidor
-- Persistencia limitada a `localStorage` del navegador — los datos no se comparten entre dispositivos ni navegadores
-- Sin autenticación ni control de acceso
-- Compatible con cualquier navegador moderno (Chrome, Firefox, Safari, Edge)
-
----
-
-## 8. Fuera de Alcance (v1.1)
-
-- Exportación a CSV o PDF
-- Múltiples tablas o sucursales
-- Sincronización en la nube
-- Control de usuarios o permisos
-- Vista de impresión optimizada
-- Edición de jornadas ya cerradas en el historial
-
----
-
-## 9. Mejoras Implementadas en v2.0
-
-| Estado | Mejora |
+| Concepto | Definición |
 |---|---|
-| ✅ | Fecha de jornada con selector (default hoy) |
-| ✅ | Historial de jornadas por fecha (guardar, ver, eliminar) |
-| ✅ | Agregar y eliminar filas de productos dinámicamente |
-| ✅ | Exportar resumen del día a CSV |
-| ✅ | Vista de impresión optimizada (`@media print`) |
-| ✅ | Importar/exportar configuración de productos en JSON |
+| **Jornada** | Período de operación de un día, identificado por fecha y tabla |
+| **Tabla** | Unidad de inventario independiente (puede representar un turno, vendedor o sucursal) |
+| **Stock inicial** | Unidades disponibles al abrir la jornada |
+| **Venta** | Unidades despachadas durante la jornada |
+| **Stock esperado** | Resultado de restar las ventas al stock inicial (`Inicial − Venta`) |
+| **Stock final** | Unidades contadas físicamente al cerrar la jornada |
+| **Discrepancia** | Diferencia entre el stock final físico y el esperado. Indica posibles pérdidas, errores de conteo o ventas no registradas |
+| **Importe** | Valor monetario de las ventas de un producto (`Venta × Precio`) |
+| **Total del día** | Suma de importes de todos los productos de la jornada |
 
-## 10. Fuera de Alcance (v2.0)
+---
 
-- Exportación a PDF
-- Soporte para múltiples tablas o sucursales
-- Sincronización en la nube
-- Edición de jornadas ya cerradas en el historial
+## 6. Funcionalidades
+
+### 6.1 Gestión de Tablas
+
+- El sistema permite operar con **múltiples tablas** independientes (ej. Tabla 1, Tabla 2, turno mañana, turno tarde)
+- El encargado puede **crear, renombrar y eliminar** tablas según la organización del negocio
+- Cada tabla conserva su propio inventario activo y su historial de jornadas
+- El cambio de tabla guarda automáticamente el estado actual antes de cambiar
+
+### 6.2 Registro de Jornada
+
+- Cada jornada está asociada a una **fecha específica** (por defecto, la del día actual)
+- El encargado registra para cada producto: stock inicial, unidades vendidas, precio y stock final contado
+- La lista de productos es **configurable**: se pueden agregar, eliminar y renombrar productos según el catálogo del negocio
+- Los cambios se guardan automáticamente mientras se trabaja, sin riesgo de perder información
+
+### 6.3 Cálculo Automático
+
+- El **importe** por producto se calcula automáticamente en cuanto se ingresan venta y precio
+- El **total del día** se actualiza en tiempo real conforme se completan los datos
+- Al pie de la jornada se muestra un **detalle** de los productos que generaron ingresos
+
+### 6.4 Detección de Discrepancias
+
+- Al ingresar el stock final físico, el sistema lo compara con el stock esperado
+- Si hay diferencia, se muestra una **alerta** indicando el producto y la magnitud de la diferencia (positiva o negativa)
+- Las discrepancias positivas indican más unidades de las esperadas; las negativas, menos (posible pérdida o venta no registrada)
+
+### 6.5 Cierre y Guardado de Jornada
+
+- El encargado cierra la jornada con la acción **Guardar día**
+- Los datos quedan registrados en el **historial** con su fecha y nombre de tabla
+- Si una jornada ya guardada necesita corregirse, puede **reabrirse para edición**; al guardar de nuevo sobreescribe el registro anterior
+- La acción **Limpiar** reinicia la jornada activa sin afectar el historial
+
+### 6.6 Historial de Jornadas
+
+- El historial muestra todas las jornadas guardadas, ordenadas de más reciente a más antigua
+- Para cada entrada se visualiza: fecha, tabla, total del día, detalle de productos e importe, y discrepancias registradas
+- Las jornadas del historial pueden **consultarse, editarse o eliminarse**
+
+### 6.7 Exportación de Datos
+
+| Formato | Contenido | Propósito |
+|---|---|---|
+| **CSV** | Todas las filas de la jornada con tabla, fecha, producto, cantidades e importes | Análisis externo, archivo, contabilidad |
+| **PDF** | Vista limpia de la tabla lista para imprimir o archivar digitalmente | Reporte impreso o archivo físico |
+
+### 6.8 Configuración de Productos
+
+- El catálogo de productos puede exportarse e importarse como lista estructurada
+- Permite replicar rápidamente la configuración de una tabla a otra, o actualizar precios en bloque
+
+---
+
+## 7. Flujo de Uso Típico
+
+```
+Al abrir la jornada:
+  1. Seleccionar la tabla correspondiente (turno, sucursal, etc.)
+  2. Confirmar la fecha del día
+  3. Registrar el stock inicial de cada producto
+
+Durante la jornada:
+  4. Ir registrando las ventas conforme ocurren (o al cierre)
+
+Al cerrar la jornada:
+  5. Contar físicamente el stock restante e ingresar el stock final
+  6. Revisar las discrepancias detectadas e investigar diferencias
+  7. Guardar la jornada en el historial
+  8. Exportar el reporte si se necesita (CSV o PDF)
+  9. Limpiar para dejar lista la tabla para el día siguiente
+```
+
+---
+
+## 8. Restricciones Operativas
+
+- La herramienta opera **sin conexión a internet**; los datos se almacenan localmente en el dispositivo
+- Los datos son locales al navegador y dispositivo — no se comparten automáticamente entre equipos
+- No hay autenticación ni control de acceso; cualquier persona con acceso al dispositivo puede operar la herramienta
+- Los datos se pierden si se borra el historial del navegador; se recomienda exportar CSV periódicamente como respaldo
+
+---
+
+## 9. Fuera de Alcance
+
+| Funcionalidad | Motivo de exclusión |
+|---|---|
+| Sincronización entre dispositivos | Requiere servidor y conexión a internet |
+| Control de usuarios y permisos | Requiere sistema de autenticación |
+| Alertas automáticas (correo, notificaciones) | Requiere infraestructura externa |
+| Integración con sistemas de facturación o contabilidad | Fuera del alcance de una herramienta local |
+
+---
+
+## 10. Historial de Versiones
+
+| Versión | Mejoras |
+|---|---|
+| 1.0 | Registro básico de inventario con cálculo manual |
+| 1.1 | Fecha de jornada, historial, cálculo automático al escribir |
+| 2.0 | Catálogo dinámico, exportación CSV, impresión, configuración de productos |
+| 3.0 | Múltiples tablas, edición de jornadas cerradas, exportación PDF |
