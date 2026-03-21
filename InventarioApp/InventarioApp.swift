@@ -1,17 +1,13 @@
 import SwiftUI
-import SwiftData
 
 @main
 struct InventarioApp: App {
+    @StateObject private var store = DataStore()
+
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .environmentObject(store)
         }
-        .modelContainer(for: [
-            Product.self,
-            InventoryTable.self,
-            Jornada.self,
-            JornadaEntry.self
-        ])
     }
 }
