@@ -1,0 +1,968 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Inventario v4.0</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: Arial, sans-serif; max-width: 980px; margin: 0 auto; padding: 16px; }
+  h2 { margin-bottom: 8px; }
+
+  /* Barra de tabla */
+  .tabla-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+  .tabla-bar label { font-weight: bold; font-size: 14px; white-space: nowrap; }
+  .tabla-bar select { padding: 4px 8px; font-size: 14px; border: 1px solid #aaa; border-radius: 4px; }
+
+  /* Barra de fecha */
+  .fecha-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+  .fecha-bar label { font-weight: bold; font-size: 15px; }
+  .fecha-bar input[type="date"] { padding: 4px 8px; font-size: 14px; border: 1px solid #aaa; border-radius: 4px; }
+
+  /* Banner edición histórica */
+  #editBanner { display: none; background: #fff3cd; border: 1px solid #ffc107; border-radius: 4px;
+    padding: 8px 14px; margin-bottom: 10px; font-size: 13px; color: #856404; }
+  #editBanner.on { display: flex; align-items: center; gap: 10px; }
+  #editBanner button { font-size: 12px; padding: 2px 8px; cursor: pointer; }
+
+  /* Tabla de jornada */
+  table { border-collapse: collapse; width: 100%; margin-bottom: 6px; }
+  th, td { border: 1px solid #ccc; padding: 6px; text-align: center; }
+  th { background: #eee; }
+  td.nombre-cell { text-align: left; min-width: 130px; }
+  input.f { text-align: center; border: none; background: transparent; font-size: 13px; font-family: Arial; }
+  input.f:focus { background: #fff; border: 1px solid #aaa; outline: none; border-radius: 2px; }
+  input.f.nombre { width: 120px; text-align: left; }
+  input.f.num   { width: 68px; }
+  input[readonly].f { color: #444; }
+
+  /* Botón eliminar fila */
+  .btn-rm { background: none; border: none; color: #b00; cursor: pointer; font-size: 15px; padding: 0 4px; }
+  .btn-rm:hover { color: #f00; }
+  .btn-add { margin: 4px 0 14px; padding: 5px 14px; font-size: 13px; cursor: pointer;
+    border: 1px solid #aaa; border-radius: 4px; background: #f5f5f5; }
+  .btn-add:hover { background: #e8e8e8; }
+
+  /* Resumen */
+  .summary { font-size: 15px; margin: 10px 0 4px; }
+  #detalle, #discrepancias { margin-top: 6px; font-size: 13px; }
+  .disc { color: #c00; }
+
+  /* Botones de acción */
+  .actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0; }
+  .btn { padding: 8px 16px; font-size: 14px; cursor: pointer; border: 1px solid #aaa;
+    background: #f5f5f5; border-radius: 4px; }
+  .btn:hover { background: #e0e0e0; }
+  .btn.ok  { background: #28a745; color: #fff; border-color: #1e7e34; }
+  .btn.ok:hover { background: #218838; }
+  .btn.del { background: #dc3545; color: #fff; border-color: #b02a37; }
+  .btn.del:hover { background: #c82333; }
+  .btn.sm  { padding: 4px 10px; font-size: 13px; }
+
+  /* Historial */
+  .hist-section { margin-top: 24px; border-top: 2px solid #ddd; padding-top: 12px; }
+  .hist-section summary { cursor: pointer; font-size: 15px; font-weight: bold; user-select: none; }
+  .hist-list { list-style: none; padding: 0; margin: 8px 0 0; }
+  .hist-list li { display: flex; justify-content: space-between; align-items: center;
+    padding: 6px 8px; border-bottom: 1px solid #eee; font-size: 14px; }
+  .hist-list li:hover { background: #fafafa; }
+  .hist-meta { display: flex; flex-direction: column; gap: 2px; }
+  .hist-meta .tabla-tag { font-size: 11px; color: #666; }
+  .hist-btns { display: flex; gap: 6px; }
+  .hist-btns button { font-size: 12px; padding: 3px 8px; cursor: pointer;
+    border: 1px solid #aaa; border-radius: 3px; background: #f5f5f5; }
+  .hist-btns button:hover { background: #e0e0e0; }
+  .hist-btns .b-del { color: #c00; background: none; border: none; font-size: 15px; padding: 0 4px; }
+
+  /* Modal */
+  .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45);
+    z-index: 200; align-items: center; justify-content: center; }
+  .overlay.on { display: flex; }
+  .modal { background: #fff; border-radius: 6px; padding: 22px; width: 92%; max-width: 820px;
+    max-height: 85vh; overflow-y: auto; position: relative; }
+  .modal h3 { margin-top: 0; }
+  .modal-x { position: absolute; top: 12px; right: 14px; background: none; border: none;
+    font-size: 22px; cursor: pointer; color: #555; }
+  .modal-x:hover { color: #000; }
+  .modal table { font-size: 13px; width: 100%; }
+  .modal-footer { display: flex; gap: 8px; margin-top: 10px; }
+
+  /* Wizard: pantalla inicial opaca, no se cierra con clic exterior */
+  #overlayWizard { background: #fff; z-index: 300; align-items: flex-start;
+    overflow-y: auto; padding: 32px 16px; }
+  #wizardBox { width: 100%; max-width: 820px; margin: 0 auto; }
+  #wizardBox h2 { margin-top: 0; }
+
+  /* Botones de reorden en catálogo y wizard */
+  .btn-order { background: none; border: 1px solid #ccc; border-radius: 3px; cursor: pointer;
+    font-size: 12px; padding: 1px 5px; color: #555; margin: 0 1px; }
+  .btn-order:hover { background: #eee; color: #000; }
+  .btn-order:disabled { color: #ccc; border-color: #eee; cursor: default; background: none; }
+
+  /* Tabla del catálogo en modal/wizard */
+  .cat-table { border-collapse: collapse; width: 100%; margin-bottom: 8px; font-size: 13px; }
+  .cat-table th, .cat-table td { border: 1px solid #ccc; padding: 5px 6px; text-align: center; }
+  .cat-table th { background: #eee; }
+  .cat-table td.cat-nombre { text-align: left; }
+  .cat-table input.cat-f { border: none; background: transparent; font-size: 13px;
+    font-family: Arial; width: 100%; }
+  .cat-table input.cat-f:focus { background: #fff; border: 1px solid #aaa;
+    outline: none; border-radius: 2px; }
+
+  /* Banner de respaldo — fijo en la parte inferior */
+  #backupReminder { display: none; position: fixed; bottom: 0; left: 0; right: 0;
+    background: #fff3cd; border-top: 2px solid #ffc107; padding: 8px 16px;
+    font-size: 13px; color: #856404; align-items: center; gap: 12px; z-index: 100; flex-wrap: wrap; }
+  #backupReminder.on { display: flex; }
+  #backupReminder button { font-size: 12px; padding: 3px 10px; cursor: pointer;
+    border: 1px solid #b8860b; border-radius: 3px; background: #fff; }
+
+  /* Print */
+  @media print {
+    .no-print { display: none !important; }
+    .hist-section { display: none !important; }
+    #editBanner { display: none !important; }
+    .actions { display: none !important; }
+    .fecha-bar input[type="date"] { border: none; font-weight: bold; }
+    input.f { font-size: 12px; }
+    body { max-width: 100%; padding: 4px; }
+    th { background: #ddd !important; -webkit-print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════
+     A: WIZARD — Configuración inicial (primer uso)
+     Se muestra cuando el catálogo está vacío.
+     No se puede cerrar con clic exterior.
+═══════════════════════════════════════════════════ -->
+<div id="overlayWizard" class="overlay">
+  <div id="wizardBox">
+    <h2>Bienvenido — Configura tu catálogo de productos</h2>
+    <p style="font-size:14px; color:#555; margin-bottom:14px">
+      Ingresa todos los productos con su nombre y precio. Podrás editarlos en cualquier momento desde el botón <strong>Catálogo</strong>.
+    </p>
+
+    <table class="cat-table">
+      <thead>
+        <tr>
+          <th style="width:70px">Orden</th>
+          <th>Producto</th>
+          <th style="width:100px">Precio</th>
+          <th style="width:32px"></th>
+        </tr>
+      </thead>
+      <tbody id="wizardTbody"></tbody>
+    </table>
+
+    <button class="btn-add" onclick="wizardAgregarFila()">+ Agregar producto</button>
+
+    <div style="margin-top:16px; display:flex; gap:8px; flex-wrap:wrap; align-items:center">
+      <button class="btn ok" onclick="wizardGuardar()">Comenzar</button>
+      <span style="font-size:12px; color:#999">Al menos un producto es necesario para continuar.</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     B: APP SHELL — oculto hasta que el wizard termina
+═══════════════════════════════════════════════════ -->
+<div id="appShell" style="display:none">
+
+<h2>Inventario</h2>
+
+<!-- Selector de tabla -->
+<div class="tabla-bar no-print">
+  <label for="tablaSelect">Tabla:</label>
+  <select id="tablaSelect" onchange="cambiarTabla()"></select>
+  <button class="btn sm" onclick="nuevaTabla()">+ Nueva tabla</button>
+  <button class="btn sm" onclick="renombrarTabla()">Renombrar</button>
+  <button class="btn sm del" onclick="eliminarTabla()">Eliminar tabla</button>
+</div>
+
+<!-- Banner: editando jornada histórica -->
+<div id="editBanner">
+  &#9888; Editando jornada histórica — los cambios se guardarán al presionar <strong>Guardar día</strong>.
+  <button onclick="cancelarEdicion()">Cancelar</button>
+</div>
+
+<!-- Fecha de jornada -->
+<div class="fecha-bar">
+  <label for="fechaJornada">Fecha:</label>
+  <input type="date" id="fechaJornada">
+</div>
+
+<table id="tabla">
+  <thead>
+    <tr>
+      <th>Producto</th>
+      <th>Inicial</th>
+      <th>Venta</th>
+      <th>Precio</th>
+      <th>Importe</th>
+      <th>Final</th>
+      <th class="no-print" style="width:32px"></th>
+    </tr>
+  </thead>
+  <tbody id="tbody"></tbody>
+</table>
+
+<button class="btn-add no-print" onclick="agregarFilaJornada()">+ Agregar producto</button>
+
+<div class="summary"><strong>Total Importe:</strong> <span id="totalImporte">0.00</span></div>
+<div id="detalle"></div>
+<div id="discrepancias"></div>
+
+<div class="actions no-print">
+  <button class="btn ok"  onclick="guardarDia()">Guardar día</button>
+  <button class="btn"     onclick="exportarCSV()">Exportar CSV</button>
+  <button class="btn"     onclick="exportarPDF()">Exportar PDF</button>
+  <button class="btn"     onclick="window.print()">Imprimir</button>
+  <button class="btn"     onclick="abrirCatalog()">Catálogo</button>
+  <button class="btn del" onclick="limpiar()">Limpiar</button>
+</div>
+
+<!-- Historial -->
+<details class="hist-section no-print" id="historialSection">
+  <summary>Historial de jornadas</summary>
+  <ul class="hist-list" id="histList"></ul>
+</details>
+
+</div><!-- fin appShell -->
+
+<!-- ═══════════════════════════════════════════════════
+     C: MODAL — Ver jornada del historial
+═══════════════════════════════════════════════════ -->
+<div class="overlay" id="overlayHist">
+  <div class="modal">
+    <button class="modal-x" onclick="cerrar('overlayHist')">&#x2715;</button>
+    <h3 id="mFecha"></h3>
+    <p><strong>Tabla:</strong> <span id="mTabla"></span> &nbsp;|&nbsp; <strong>Total:</strong> <span id="mTotal"></span></p>
+    <div id="mDetalle"></div>
+    <div id="mDiscrep"></div>
+    <table style="margin-top:12px">
+      <thead>
+        <tr><th>Producto</th><th>Inicial</th><th>Venta</th><th>Precio</th><th>Importe</th><th>Final</th></tr>
+      </thead>
+      <tbody id="mTbody"></tbody>
+    </table>
+    <div class="modal-footer" style="margin-top:16px">
+      <button class="btn ok" onclick="editarDia()">Editar esta jornada</button>
+      <button class="btn"    onclick="cerrar('overlayHist')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     D: MODAL — Gestión de catálogo
+═══════════════════════════════════════════════════ -->
+<div class="overlay" id="overlayCatalog">
+  <div class="modal">
+    <button class="modal-x" onclick="cerrar('overlayCatalog')">&#x2715;</button>
+    <h3>Catálogo de Productos</h3>
+
+    <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px">
+      <button class="btn sm" onclick="catalogOrdenarAZ()">Ordenar A&#x2192;Z</button>
+      <button class="btn sm" onclick="catalogExportarJSON()">Exportar JSON</button>
+      <label class="btn sm" style="cursor:pointer; margin:0">
+        Importar JSON
+        <input type="file" accept=".json" style="display:none" onchange="catalogImportarJSON(this)">
+      </label>
+    </div>
+
+    <table class="cat-table">
+      <thead>
+        <tr>
+          <th style="width:70px">Orden</th>
+          <th>Producto</th>
+          <th style="width:100px">Precio</th>
+          <th style="width:32px"></th>
+        </tr>
+      </thead>
+      <tbody id="catalogTbody"></tbody>
+    </table>
+
+    <button class="btn-add" onclick="catalogAgregarFila()">+ Agregar producto</button>
+
+    <div class="modal-footer">
+      <button class="btn ok" onclick="catalogGuardar()">Guardar catálogo</button>
+      <button class="btn"    onclick="cerrar('overlayCatalog')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     E: BANNER de recordatorio de respaldo
+═══════════════════════════════════════════════════ -->
+<div id="backupReminder">
+  <span>&#128190; Recordatorio: exporta tu historial en CSV periódicamente para no perder datos.</span>
+  <button onclick="exportarCSV()">Exportar CSV ahora</button>
+  <button onclick="cerrarBackupReminder()">Entendido</button>
+</div>
+
+<script>
+// ─── Claves de almacenamiento ──────────────────────────────────────────────────
+const KEY_CATALOG   = 'inv2_catalog';
+const KEY_TABLES    = 'inv2_tables';
+const KEY_ACTIVE    = 'inv2_active';
+const KEY_HIST      = 'inv2_hist';
+const KEY_SAVECOUNT = 'inv2_save_count';
+const keyCur        = t => 'inv2_cur_' + t;
+
+// ─── Estado global ─────────────────────────────────────────────────────────────
+let activeTable   = '';
+let histViewIndex = null;
+
+// ─── Utilidades ────────────────────────────────────────────────────────────────
+function hoy()      { return new Date().toISOString().slice(0, 10); }
+function round2(n)  { return Math.round(n * 100) / 100; }
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+}
+
+// ─── Catálogo — almacenamiento ─────────────────────────────────────────────────
+function getCatalog() {
+  try {
+    const raw = localStorage.getItem(KEY_CATALOG);
+    return raw ? JSON.parse(raw) : [];
+  } catch(e) { return []; }
+}
+function setCatalog(arr) {
+  localStorage.setItem(KEY_CATALOG, JSON.stringify(arr));
+}
+function catalogEmpty() {
+  return getCatalog().length === 0;
+}
+
+// ─── Fábrica de filas de catálogo (shared entre wizard y modal catálogo) ───────
+// ctx: 'wizard' | 'catalog'
+function crearFilaCatalogo(ctx, item) {
+  item = item || { nombre: '', precio: 0 };
+  const nombre = escHtml(String(item.nombre || ''));
+  const precio = item.precio != null ? item.precio : 0;
+
+  const subirFn = ctx === 'wizard' ? 'wizardSubir(this)' : 'catalogSubir(this)';
+  const bajarFn = ctx === 'wizard' ? 'wizardBajar(this)' : 'catalogBajar(this)';
+  const elimFn  = ctx === 'wizard' ? 'wizardEliminarFila(this)' : 'catalogEliminarFila(this)';
+
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td style="white-space:nowrap">
+      <button class="btn-order" onclick="${subirFn}" title="Subir">&#9650;</button>
+      <button class="btn-order" onclick="${bajarFn}" title="Bajar">&#9660;</button>
+    </td>
+    <td class="cat-nombre">
+      <input class="cat-f cat-nombre-input" value="${nombre}" placeholder="Nombre del producto">
+    </td>
+    <td>
+      <input class="cat-f cat-precio-input" type="number" min="0" step="0.01"
+        value="${precio}" style="width:90px; text-align:right">
+    </td>
+    <td>
+      <button class="btn-rm" onclick="${elimFn}" title="Eliminar">&#x2715;</button>
+    </td>`;
+  return tr;
+}
+
+function actualizarBotones(tbodyId) {
+  const rows = document.querySelectorAll('#' + tbodyId + ' tr');
+  rows.forEach((tr, i) => {
+    const btns = tr.querySelectorAll('.btn-order');
+    btns[0].disabled = (i === 0);
+    btns[1].disabled = (i === rows.length - 1);
+  });
+}
+
+function leerFilasCatalogo(tbodyId) {
+  return Array.from(document.querySelectorAll('#' + tbodyId + ' tr'))
+    .map(tr => ({
+      nombre: tr.querySelector('.cat-nombre-input').value.trim(),
+      precio: parseFloat(tr.querySelector('.cat-precio-input').value) || 0,
+    }))
+    .filter(p => p.nombre !== '');
+}
+
+function moverFila(btn, dir, tbodyId) {
+  const tr   = btn.closest('tr');
+  const tbody = document.getElementById(tbodyId);
+  const rows  = Array.from(tbody.querySelectorAll('tr'));
+  const idx   = rows.indexOf(tr);
+  if (dir === -1 && idx > 0) {
+    tbody.insertBefore(tr, rows[idx - 1]);
+  } else if (dir === 1 && idx < rows.length - 1) {
+    tbody.insertBefore(rows[idx + 1], tr);
+  }
+  actualizarBotones(tbodyId);
+}
+
+// ─── Wizard ────────────────────────────────────────────────────────────────────
+function mostrarWizard() {
+  const overlay = document.getElementById('overlayWizard');
+  overlay.classList.add('on');
+  const cat = getCatalog();
+  const tbody = document.getElementById('wizardTbody');
+  tbody.innerHTML = '';
+  if (cat.length > 0) {
+    cat.forEach(p => tbody.appendChild(crearFilaCatalogo('wizard', p)));
+  } else {
+    tbody.appendChild(crearFilaCatalogo('wizard', { nombre: '', precio: 0 }));
+  }
+  actualizarBotones('wizardTbody');
+}
+
+function wizardAgregarFila() {
+  document.getElementById('wizardTbody').appendChild(crearFilaCatalogo('wizard', { nombre: '', precio: 0 }));
+  actualizarBotones('wizardTbody');
+}
+
+function wizardEliminarFila(btn) {
+  btn.closest('tr').remove();
+  actualizarBotones('wizardTbody');
+}
+
+function wizardSubir(btn) { moverFila(btn, -1, 'wizardTbody'); }
+function wizardBajar(btn) { moverFila(btn,  1, 'wizardTbody'); }
+
+function wizardGuardar() {
+  const items = leerFilasCatalogo('wizardTbody');
+  if (items.length === 0) {
+    alert('Agrega al menos un producto para continuar.');
+    return;
+  }
+  setCatalog(items);
+  document.getElementById('overlayWizard').classList.remove('on');
+  iniciarApp();
+}
+
+// ─── Catálogo — modal ──────────────────────────────────────────────────────────
+function abrirCatalog() {
+  catalogRenderFilas(getCatalog());
+  abrir('overlayCatalog');
+}
+
+function catalogRenderFilas(items) {
+  const tbody = document.getElementById('catalogTbody');
+  tbody.innerHTML = '';
+  items.forEach(p => tbody.appendChild(crearFilaCatalogo('catalog', p)));
+  actualizarBotones('catalogTbody');
+}
+
+function catalogAgregarFila() {
+  document.getElementById('catalogTbody').appendChild(crearFilaCatalogo('catalog', { nombre: '', precio: 0 }));
+  actualizarBotones('catalogTbody');
+}
+
+function catalogEliminarFila(btn) {
+  btn.closest('tr').remove();
+  actualizarBotones('catalogTbody');
+}
+
+function catalogSubir(btn) { moverFila(btn, -1, 'catalogTbody'); }
+function catalogBajar(btn) { moverFila(btn,  1, 'catalogTbody'); }
+
+function catalogOrdenarAZ() {
+  const items = leerFilasCatalogo('catalogTbody');
+  items.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' }));
+  catalogRenderFilas(items);
+}
+
+function catalogGuardar() {
+  const items = leerFilasCatalogo('catalogTbody');
+  if (items.length === 0) {
+    alert('El catálogo no puede quedar vacío.');
+    return;
+  }
+  setCatalog(items);
+  cerrar('overlayCatalog');
+}
+
+function catalogExportarJSON() {
+  const cat = getCatalog();
+  const blob = new Blob([JSON.stringify(cat, null, 2)], { type: 'application/json;charset=utf-8;' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'catalogo_inv2.json';
+  a.click();
+}
+
+function catalogImportarJSON(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!Array.isArray(data)) throw new Error('Debe ser un array JSON');
+      const valido = data.every(p => typeof p === 'object' && 'nombre' in p);
+      if (!valido) throw new Error('Cada elemento debe tener al menos "nombre"');
+      const items = data.map(p => ({ nombre: String(p.nombre || ''), precio: parseFloat(p.precio) || 0 }));
+      catalogRenderFilas(items);
+    } catch(err) {
+      alert('Error al importar: ' + err.message);
+    }
+    input.value = '';
+  };
+  reader.readAsText(file);
+}
+
+// ─── Gestión de tablas ─────────────────────────────────────────────────────────
+function getTables() {
+  try {
+    const raw = localStorage.getItem(KEY_TABLES);
+    return raw ? JSON.parse(raw) : ['Tabla 1'];
+  } catch(e) { return ['Tabla 1']; }
+}
+function setTables(t) { localStorage.setItem(KEY_TABLES, JSON.stringify(t)); }
+
+function renderTablaSelect() {
+  const sel = document.getElementById('tablaSelect');
+  const tables = getTables();
+  sel.innerHTML = tables.map(t =>
+    `<option value="${escHtml(t)}" ${t === activeTable ? 'selected' : ''}>${escHtml(t)}</option>`
+  ).join('');
+}
+
+function cambiarTabla() {
+  guardarLocal();
+  activeTable = document.getElementById('tablaSelect').value;
+  localStorage.setItem(KEY_ACTIVE, activeTable);
+  cancelarEdicion();
+  cargarLocal();
+  renderHistorial();
+}
+
+function nuevaTabla() {
+  const nombre = prompt('Nombre de la nueva tabla:');
+  if (!nombre || !nombre.trim()) return;
+  const tables = getTables();
+  if (tables.includes(nombre.trim())) { alert('Ya existe una tabla con ese nombre.'); return; }
+  guardarLocal();
+  tables.push(nombre.trim());
+  setTables(tables);
+  activeTable = nombre.trim();
+  localStorage.setItem(KEY_ACTIVE, activeTable);
+  renderTablaSelect();
+  cancelarEdicion();
+  cargarLocal();
+  renderHistorial();
+}
+
+function renombrarTabla() {
+  const nuevoNombre = prompt('Nuevo nombre para la tabla "' + activeTable + '":', activeTable);
+  if (!nuevoNombre || !nuevoNombre.trim() || nuevoNombre.trim() === activeTable) return;
+  const tables = getTables();
+  if (tables.includes(nuevoNombre.trim())) { alert('Ya existe una tabla con ese nombre.'); return; }
+
+  const curData = localStorage.getItem(keyCur(activeTable));
+  if (curData) { localStorage.setItem(keyCur(nuevoNombre.trim()), curData); }
+  localStorage.removeItem(keyCur(activeTable));
+
+  const hist = getHist().map(d => d.tabla === activeTable ? { ...d, tabla: nuevoNombre.trim() } : d);
+  setHist(hist);
+
+  const idx = tables.indexOf(activeTable);
+  tables[idx] = nuevoNombre.trim();
+  setTables(tables);
+  activeTable = nuevoNombre.trim();
+  localStorage.setItem(KEY_ACTIVE, activeTable);
+  renderTablaSelect();
+  renderHistorial();
+}
+
+function eliminarTabla() {
+  const tables = getTables();
+  if (tables.length === 1) { alert('No puedes eliminar la única tabla existente.'); return; }
+  if (!confirm(`¿Eliminar la tabla "${activeTable}" y sus datos actuales?\n(El historial guardado se conserva)`)) return;
+
+  localStorage.removeItem(keyCur(activeTable));
+  const idx = tables.indexOf(activeTable);
+  tables.splice(idx, 1);
+  setTables(tables);
+  activeTable = tables[0];
+  localStorage.setItem(KEY_ACTIVE, activeTable);
+  renderTablaSelect();
+  cancelarEdicion();
+  cargarLocal();
+  renderHistorial();
+}
+
+// ─── Filas de jornada ──────────────────────────────────────────────────────────
+function crearFilaJornada({ nombre = '', precio = 0, inicial = '', venta = '', final: fin = '' } = {}) {
+  const tr = document.createElement('tr');
+  // nombre es readonly para filas del catálogo; editable para filas ad-hoc (nombre vacío = ad-hoc)
+  const nombreHtml = nombre
+    ? `<input class="f nombre" value="${escHtml(nombre)}" readonly tabindex="-1">`
+    : `<input class="f nombre" value="" placeholder="Producto">`;
+  tr.innerHTML = `
+    <td class="nombre-cell">${nombreHtml}</td>
+    <td><input class="f num inicial" value="${escHtml(String(inicial))}"></td>
+    <td><input class="f num venta"   value="${escHtml(String(venta))}"></td>
+    <td><input class="f num precio"  value="${escHtml(String(precio))}"></td>
+    <td><input class="f num importe" readonly value=""></td>
+    <td><input class="f num final"   value="${escHtml(String(fin))}"></td>
+    <td class="no-print">
+      <button class="btn-rm" title="Eliminar" onclick="eliminarFilaJornada(this)">&#x2715;</button>
+    </td>`;
+  return tr;
+}
+
+function agregarFilaJornada(datos) {
+  document.getElementById('tbody').appendChild(crearFilaJornada(datos || {}));
+  actualizarResumen();
+  guardarLocal();
+}
+
+function eliminarFilaJornada(btn) {
+  btn.closest('tr').remove();
+  actualizarResumen();
+  guardarLocal();
+}
+
+// ─── Cálculo ───────────────────────────────────────────────────────────────────
+function calcularFila(tr) {
+  const nombre   = tr.querySelector('.nombre').value.trim();
+  const inicial  = parseFloat(tr.querySelector('.inicial').value) || 0;
+  const venta    = parseFloat(tr.querySelector('.venta').value)   || 0;
+  const precio   = parseFloat(tr.querySelector('.precio').value)  || 0;
+  const finalStr = tr.querySelector('.final').value.trim();
+
+  const importe = venta * precio;
+  tr.querySelector('.importe').value = importe > 0 ? importe.toFixed(2) : '';
+
+  let discrepancia = null;
+  if (finalStr !== '') {
+    const diff = round2(parseFloat(finalStr) - (inicial - venta));
+    if (diff !== 0) discrepancia = { nombre, diff };
+  }
+  return { nombre, importe, discrepancia };
+}
+
+function actualizarResumen() {
+  let total = 0;
+  let hdDet  = '<strong>Detalle Importe:</strong><ul>';
+  let hdDisc = '<strong>Discrepancias:</strong><ul>';
+  let hayDet = false, hayDisc = false;
+
+  document.querySelectorAll('#tbody tr').forEach(tr => {
+    const { nombre, importe, discrepancia } = calcularFila(tr);
+    total += importe;
+    if (importe > 0) { hdDet += `<li>${escHtml(nombre)}: ${importe.toFixed(2)}</li>`; hayDet = true; }
+    if (discrepancia) {
+      const s = discrepancia.diff > 0 ? '+' : '';
+      hdDisc += `<li class="disc">Atenci&oacute;n: ${s}${discrepancia.diff} ${escHtml(discrepancia.nombre)}</li>`;
+      hayDisc = true;
+    }
+  });
+
+  hdDet += '</ul>'; hdDisc += '</ul>';
+  document.getElementById('totalImporte').textContent = total.toFixed(2);
+  document.getElementById('detalle').innerHTML        = hayDet  ? hdDet  : '';
+  document.getElementById('discrepancias').innerHTML  = hayDisc ? hdDisc : '';
+}
+
+// ─── Persistencia local ────────────────────────────────────────────────────────
+function leerFilasJornada() {
+  return Array.from(document.querySelectorAll('#tbody tr')).map(tr => ({
+    nombre:  tr.querySelector('.nombre').value,
+    inicial: tr.querySelector('.inicial').value,
+    venta:   tr.querySelector('.venta').value,
+    precio:  tr.querySelector('.precio').value,
+    final:   tr.querySelector('.final').value,
+  }));
+}
+
+function guardarLocal() {
+  if (!activeTable) return;
+  try {
+    localStorage.setItem(keyCur(activeTable), JSON.stringify({
+      fecha: document.getElementById('fechaJornada').value,
+      filas: leerFilasJornada(),
+    }));
+  } catch(e) { console.warn('Error al guardar:', e); }
+}
+
+function cargarLocal() {
+  if (!activeTable) return;
+  let datos = null;
+  try {
+    const raw = localStorage.getItem(keyCur(activeTable));
+    datos = raw ? JSON.parse(raw) : null;
+  } catch(e) { datos = null; }
+
+  const tbody = document.getElementById('tbody');
+  tbody.innerHTML = '';
+
+  if (datos && datos.filas && datos.filas.length) {
+    document.getElementById('fechaJornada').value = datos.fecha || hoy();
+    datos.filas.forEach(f => tbody.appendChild(crearFilaJornada(f)));
+  } else {
+    document.getElementById('fechaJornada').value = hoy();
+    // Cargar desde el catálogo global (no desde DEFAULTS)
+    getCatalog().forEach(p => tbody.appendChild(crearFilaJornada({ nombre: p.nombre, precio: p.precio })));
+  }
+  actualizarResumen();
+}
+
+// ─── Historial ─────────────────────────────────────────────────────────────────
+function getHist() {
+  try {
+    const raw = localStorage.getItem(KEY_HIST);
+    return raw ? JSON.parse(raw) : [];
+  } catch(e) { return []; }
+}
+function setHist(hist) { localStorage.setItem(KEY_HIST, JSON.stringify(hist)); }
+
+function guardarDia() {
+  const fecha = document.getElementById('fechaJornada').value;
+  if (!fecha) { alert('Indica la fecha de la jornada.'); return; }
+
+  const filas = leerFilasJornada();
+  const total = round2(filas.reduce((s, f) => s + (parseFloat(f.precio || 0) * parseFloat(f.venta || 0)), 0));
+
+  const hist = getHist().filter(d => !(d.fecha === fecha && d.tabla === activeTable));
+  hist.unshift({ fecha, tabla: activeTable, totalImporte: total, filas });
+  hist.sort((a, b) => b.fecha.localeCompare(a.fecha) || a.tabla.localeCompare(b.tabla));
+  setHist(hist);
+  renderHistorial();
+  cancelarEdicion();
+  incrementarSaveCount();
+  alert(`Jornada del ${fecha} (${activeTable}) guardada.`);
+}
+
+function renderHistorial() {
+  const hist = getHist();
+  const ul   = document.getElementById('histList');
+
+  if (!hist.length) {
+    ul.innerHTML = '<li style="color:#999;padding:8px">Sin jornadas registradas.</li>';
+    return;
+  }
+
+  ul.innerHTML = hist.map((d, i) => `
+    <li>
+      <span class="hist-meta">
+        <strong>${escHtml(d.fecha)}</strong>
+        <span class="tabla-tag">${escHtml(d.tabla || '—')}</span>
+      </span>
+      <span style="font-size:13px">Total: ${d.totalImporte.toFixed(2)}</span>
+      <span class="hist-btns">
+        <button onclick="verDia(${i})">Ver / Editar</button>
+        <button class="b-del" title="Eliminar" onclick="eliminarDia(${i})">&#x1F5D1;</button>
+      </span>
+    </li>`).join('');
+}
+
+function verDia(i) {
+  histViewIndex = i;
+  const d = getHist()[i];
+  document.getElementById('mFecha').textContent = `Jornada: ${d.fecha}`;
+  document.getElementById('mTabla').textContent = d.tabla || '—';
+  document.getElementById('mTotal').textContent = d.totalImporte.toFixed(2);
+
+  let hDet = '<strong>Detalle:</strong><ul>';
+  let hDisc = '<strong>Discrepancias:</strong><ul>';
+  let hayDet = false, hayDisc = false;
+  const tbody = document.getElementById('mTbody');
+  tbody.innerHTML = '';
+
+  d.filas.forEach(f => {
+    const imp   = parseFloat(f.precio || 0) * parseFloat(f.venta || 0);
+    const inic  = parseFloat(f.inicial) || 0;
+    const venta = parseFloat(f.venta)   || 0;
+    const finS  = String(f.final || '').trim();
+
+    if (imp > 0) { hDet += `<li>${escHtml(f.nombre)}: ${imp.toFixed(2)}</li>`; hayDet = true; }
+    if (finS !== '') {
+      const diff = round2(parseFloat(finS) - (inic - venta));
+      if (diff !== 0) {
+        hDisc += `<li class="disc">Atenci&oacute;n: ${diff > 0 ? '+' : ''}${diff} ${escHtml(f.nombre)}</li>`;
+        hayDisc = true;
+      }
+    }
+    const tr = document.createElement('tr');
+    const importeVal = imp > 0 ? imp.toFixed(2) : '';
+    tr.innerHTML = `<td>${escHtml(f.nombre)}</td><td>${escHtml(String(f.inicial||''))}</td>` +
+                   `<td>${escHtml(String(f.venta||''))}</td><td>${escHtml(String(f.precio||''))}</td>` +
+                   `<td>${importeVal}</td><td>${escHtml(String(f.final||''))}</td>`;
+    tbody.appendChild(tr);
+  });
+
+  hDet += '</ul>'; hDisc += '</ul>';
+  document.getElementById('mDetalle').innerHTML = hayDet  ? hDet  : '';
+  document.getElementById('mDiscrep').innerHTML = hayDisc ? hDisc : '';
+  abrir('overlayHist');
+}
+
+function editarDia() {
+  if (histViewIndex === null) return;
+  const d = getHist()[histViewIndex];
+
+  if (d.tabla && d.tabla !== activeTable) {
+    guardarLocal();
+    const tables = getTables();
+    if (!tables.includes(d.tabla)) { tables.push(d.tabla); setTables(tables); }
+    activeTable = d.tabla;
+    localStorage.setItem(KEY_ACTIVE, activeTable);
+    renderTablaSelect();
+  }
+
+  document.getElementById('fechaJornada').value = d.fecha;
+  const tbody = document.getElementById('tbody');
+  tbody.innerHTML = '';
+  d.filas.forEach(f => tbody.appendChild(crearFilaJornada(f)));
+  actualizarResumen();
+
+  document.getElementById('editBanner').classList.add('on');
+  cerrar('overlayHist');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function cancelarEdicion() {
+  document.getElementById('editBanner').classList.remove('on');
+  histViewIndex = null;
+}
+
+function eliminarDia(i) {
+  const hist = getHist();
+  const d    = hist[i];
+  if (!confirm(`¿Eliminar la jornada del ${d.fecha} (${d.tabla}) del historial?`)) return;
+  hist.splice(i, 1);
+  setHist(hist);
+  renderHistorial();
+}
+
+// ─── Backup reminder ───────────────────────────────────────────────────────────
+function incrementarSaveCount() {
+  let count = 0;
+  try { count = parseInt(localStorage.getItem(KEY_SAVECOUNT) || '0', 10) || 0; } catch(e) {}
+  count++;
+  localStorage.setItem(KEY_SAVECOUNT, String(count));
+  if (count % 7 === 0) mostrarBackupReminder();
+}
+
+function mostrarBackupReminder() {
+  document.getElementById('backupReminder').classList.add('on');
+}
+
+function cerrarBackupReminder() {
+  document.getElementById('backupReminder').classList.remove('on');
+}
+
+// ─── Exportar CSV ──────────────────────────────────────────────────────────────
+function exportarCSV() {
+  const fecha = document.getElementById('fechaJornada').value || 'sin-fecha';
+  const filas = leerFilasJornada();
+  const total = round2(filas.reduce((s, f) =>
+    s + (parseFloat(f.precio || 0) * parseFloat(f.venta || 0)), 0));
+
+  let csv = 'Tabla,Fecha,Producto,Inicial,Venta,Precio,Importe,Final\n';
+  filas.forEach(f => {
+    const imp = (parseFloat(f.precio || 0) * parseFloat(f.venta || 0)).toFixed(2);
+    csv += `"${activeTable}",${fecha},"${f.nombre}",${f.inicial},${f.venta},${f.precio},${imp},${f.final}\n`;
+  });
+  csv += `\n,,,,,Total,${total.toFixed(2)},\n`;
+
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
+  a.download = `inventario2_${activeTable}_${fecha}.csv`;
+  a.click();
+}
+
+// ─── Exportar PDF ──────────────────────────────────────────────────────────────
+function exportarPDF() {
+  const fecha = document.getElementById('fechaJornada').value || '—';
+  const filas = leerFilasJornada();
+  const total = round2(filas.reduce((s, f) =>
+    s + (parseFloat(f.precio || 0) * parseFloat(f.venta || 0)), 0));
+
+  const filaHTML = filas
+    .filter(f => parseFloat(f.venta) > 0 || parseFloat(f.inicial) > 0)
+    .map(f => {
+      const imp = (parseFloat(f.precio || 0) * parseFloat(f.venta || 0));
+      return `<tr>
+        <td>${escHtml(f.nombre)}</td>
+        <td>${escHtml(String(f.inicial||''))}</td><td>${escHtml(String(f.venta||''))}</td>
+        <td>${escHtml(String(f.precio||''))}</td>
+        <td>${imp > 0 ? imp.toFixed(2) : ''}</td>
+        <td>${escHtml(String(f.final||''))}</td>
+      </tr>`;
+    }).join('');
+
+  const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+  <title>Inventario ${escHtml(activeTable)} — ${fecha}</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; font-size: 12px; }
+    h2 { margin-bottom: 4px; }
+    .meta { margin-bottom: 12px; color: #555; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #aaa; padding: 5px 8px; text-align: center; }
+    th { background: #ddd; }
+    td:first-child { text-align: left; }
+    .total { margin-top: 10px; font-size: 14px; font-weight: bold; }
+  </style></head><body>
+  <h2>Inventario — ${escHtml(activeTable)}</h2>
+  <div class="meta">Fecha: <strong>${escHtml(fecha)}</strong></div>
+  <table>
+    <thead><tr><th>Producto</th><th>Inicial</th><th>Venta</th><th>Precio</th><th>Importe</th><th>Final</th></tr></thead>
+    <tbody>${filaHTML}</tbody>
+  </table>
+  <div class="total">Total Importe: ${total.toFixed(2)}</div>
+  <script>window.onload = function(){ window.print(); }<\/script>
+  </body></html>`;
+
+  const win = window.open('', '_blank');
+  win.document.write(html);
+  win.document.close();
+}
+
+// ─── Limpiar jornada ───────────────────────────────────────────────────────────
+function limpiar() {
+  if (!confirm('¿Limpiar la jornada actual?\n(El catálogo e historial no se borran)')) return;
+  localStorage.removeItem(keyCur(activeTable));
+  cancelarEdicion();
+  cargarLocal();
+}
+
+// ─── Modales ───────────────────────────────────────────────────────────────────
+function abrir(id)  { document.getElementById(id).classList.add('on'); }
+function cerrar(id) { document.getElementById(id).classList.remove('on'); }
+
+document.querySelectorAll('.overlay').forEach(el => {
+  el.addEventListener('click', e => {
+    // El wizard no se puede cerrar con clic exterior
+    if (el.id === 'overlayWizard') return;
+    if (e.target === el) el.classList.remove('on');
+  });
+});
+
+// ─── Inicialización ────────────────────────────────────────────────────────────
+function iniciarApp() {
+  document.getElementById('appShell').style.display = 'block';
+
+  const tables = getTables();
+  const saved  = localStorage.getItem(KEY_ACTIVE);
+  activeTable  = (saved && tables.includes(saved)) ? saved : tables[0];
+  localStorage.setItem(KEY_ACTIVE, activeTable);
+
+  renderTablaSelect();
+  cargarLocal();
+  renderHistorial();
+
+  document.getElementById('tabla').addEventListener('input', () => {
+    actualizarResumen();
+    guardarLocal();
+  });
+  document.getElementById('fechaJornada').addEventListener('change', guardarLocal);
+}
+
+(function init() {
+  if (catalogEmpty()) {
+    mostrarWizard();
+  } else {
+    iniciarApp();
+  }
+})();
+</script>
+
+</body>
+</html>
