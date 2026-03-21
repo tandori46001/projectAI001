@@ -2,7 +2,7 @@
 
 Aplicación multiplataforma para gestionar el inventario diario de un negocio (restaurante, tienda, bar, etc.). Permite registrar stock inicial, ventas y stock final de cada producto, calcular importes automáticamente, detectar discrepancias y mantener un historial de jornadas.
 
-Disponible como **app iOS nativa** (SwiftUI) y **app Android nativa** (Jetpack Compose). Ambas comparten la misma lógica de negocio y estructura de datos.
+Disponible como **app web HTML** (archivo único, sin servidor), **app iOS nativa** (SwiftUI) y **app Android nativa** (Jetpack Compose). Las tres plataformas comparten la misma lógica de negocio y estructura de datos.
 
 ---
 
@@ -16,6 +16,26 @@ Disponible como **app iOS nativa** (SwiftUI) y **app Android nativa** (Jetpack C
 - **Exportación**: CSV y PDF compartibles por WhatsApp, email, etc.
 - **Auto-guardado**: la sesión se guarda automáticamente al modificar cualquier campo
 - **Recordatorio de backup**: cada 7 guardados sugiere exportar datos
+
+---
+
+## Web
+
+### Archivo
+
+- `inventario.html` — aplicación completa en un solo archivo HTML (CSS + JavaScript embebidos)
+
+### Uso
+
+Abrir `inventario.html` directamente en cualquier navegador (Chrome, Safari, Firefox, Edge). No requiere servidor ni instalación.
+
+Los datos se guardan en `localStorage` del navegador. Funciona completamente offline.
+
+### Funciones adicionales (solo web)
+
+- **Imprimir** — imprime la jornada actual directamente desde el navegador
+- **Exportar/Importar catálogo JSON** — permite mover el catálogo entre dispositivos
+- **Reordenar productos** — con botones ▲/▼ en el wizard y catálogo
 
 ---
 
