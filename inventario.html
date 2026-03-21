@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Inventario v5.1</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+    max-width: 960px; margin: 0 auto; padding: 16px; color: #222; background: #fafafa; }
+  h2 { margin: 0 0 12px; font-size: 22px; }
+
+  /* ── Barra de tabla ── */
+  .tabla-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+  .tabla-bar label { font-weight: 600; font-size: 14px; white-space: nowrap; }
+  .tabla-bar select { padding: 6px 10px; font-size: 14px; border: 1px solid #bbb; border-radius: 6px; background: #fff; }
+
+  /* ── Fecha ── */
+  .fecha-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+  .fecha-bar label { font-weight: 600; font-size: 15px; }
+  .fecha-bar input[type="date"] { padding: 6px 10px; font-size: 14px; border: 1px solid #bbb; border-radius: 6px; }
+
+  /* ── Banner edición histórica ── */
+  #editBanner { display: none; background: #fff3cd; border: 1px solid #ffc107; border-radius: 6px;
+    padding: 10px 16px; margin-bottom: 12px; font-size: 13px; color: #856404; }
+  #editBanner.on { display: flex; align-items: center; gap: 12px; }
+  #editBanner button { font-size: 12px; padding: 4px 12px; cursor: pointer; border: 1px solid #b8860b;
+    border-radius: 4px; background: #fff; }
+
+  /* ── Tabla de inventario ── */
+  table { border-collapse: collapse; width: 100%; margin-bottom: 8px; }
+  th, td { border: 1px solid #ccc; padding: 6px 8px; text-align: center; font-size: 13px; }
+  th { background: #eee; font-weight: 600; }
+  td.nombre-cell { text-align: left; min-width: 130px; }
+  input.f { text-align: center; border: none; background: transparent; font-size: 13px;
+    font-family: inherit; width: 100%; }
+  input.f:focus { background: #fff; border: 1px solid #aaa; outline: none; border-radius: 3px; }
+  input.f.nombre { text-align: left; }
+  input.f.num { width: 68px; }
+  input[readonly].f { color: #555; }
+
+  /* ── Botones ── */
+  .btn-rm { background: none; border: none; color: #b00; cursor: pointer; font-size: 16px; padding: 0 4px; }
+  .btn-rm:hover { color: #f00; }
+  .btn-add { margin: 4px 0 14px; padding: 6px 16px; font-size: 13px; cursor: pointer;
+    border: 1px solid #bbb; border-radius: 6px; background: #fff; }
+  .btn-add:hover { background: #f0f0f0; }
+
+  .btn { padding: 8px 18px; font-size: 14px; cursor: pointer; border: 1px solid #bbb;
+    background: #fff; border-radius: 6px; transition: background .15s; }
+  .btn:hover { background: #f0f0f0; }
+  .btn.ok { background: #28a745; color: #fff; border-color: #1e7e34; }
+  .btn.ok:hover { background: #218838; }
+  .btn.del { background: #dc3545; color: #fff; border-color: #b02a37; }
+  .btn.del:hover { background: #c82333; }
+  .btn.sm { padding: 4px 10px; font-size: 13px; }
+
+  .btn-order { background: none; border: 1px solid #ccc; border-radius: 4px; cursor: pointer;
+    font-size: 12px; padding: 2px 6px; color: #555; margin: 0 1px; }
+  .btn-order:hover { background: #eee; }
+  .btn-order:disabled { color: #ccc; border-color: #eee; cursor: default; }
+
+  /* ── Resumen ── */
+  .summary { font-size: 16px; font-weight: 600; margin: 12px 0 6px; }
+  #detalle, #discrepancias { margin-top: 6px; font-size: 13px; }
+  #detalle ul, #discrepancias ul { margin: 4px 0 0 16px; padding: 0; }
+  .disc { color: #c00; font-weight: 500; }
+
+  /* ── Acciones ── */
+  .actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0; }
+
+  /* ── Historial ── */
+  .hist-section { margin-top: 24px; border-top: 2px solid #ddd; padding-top: 14px; }
+  .hist-section summary { cursor: pointer; font-size: 15px; font-weight: 600; user-select: none; }
+  .hist-list { list-style: none; padding: 0; margin: 10px 0 0; }
+  .hist-list li { display: flex; justify-content: space-between; align-items: center;
+    padding: 8px 10px; border-bottom: 1px solid #eee; font-size: 14px; }
+  .hist-list li:hover { background: #f5f5f5; }
+  .hist-meta { display: flex; flex-direction: column; gap: 2px; }
+  .hist-meta .tabla-tag { font-size: 11px; color: #777; }
+  .hist-btns { display: flex; gap: 6px; align-items: center; }
+  .hist-btns button { font-size: 12px; padding: 4px 10px; cursor: pointer;
+    border: 1px solid #bbb; border-radius: 4px; background: #fff; }
+  .hist-btns button:hover { background: #f0f0f0; }
+  .hist-btns .b-del { color: #c00; background: none; border: none; font-size: 16px; padding: 0 4px; cursor: pointer; }
+
+  /* ── Modales ── */
+  .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45);
+    z-index: 200; align-items: center; justify-content: center; }
+  .overlay.on { display: flex; }
+  .modal { background: #fff; border-radius: 10px; padding: 24px; width: 94%; max-width: 840px;
+    max-height: 88vh; overflow-y: auto; position: relative; }
+  .modal h3 { margin-top: 0; }
+  .modal-x { position: absolute; top: 12px; right: 14px; background: none; border: none;
+    font-size: 22px; cursor: pointer; color: #555; }
+  .modal-x:hover { color: #000; }
+  .modal table { font-size: 13px; width: 100%; }
+  .modal-footer { display: flex; gap: 8px; margin-top: 14px; }
+
+  /* ── Wizard ── */
+  #overlayWizard { background: #fff; z-index: 300; align-items: flex-start;
+    overflow-y: auto; padding: 32px 16px; }
+  #wizardBox { width: 100%; max-width: 840px; margin: 0 auto; }
+  #wizardBox h2 { margin-top: 0; }
+
+  /* ── Catálogo tabla ── */
+  .cat-table { border-collapse: collapse; width: 100%; margin-bottom: 8px; font-size: 13px; }
+  .cat-table th, .cat-table td { border: 1px solid #ccc; padding: 5px 6px; text-align: center; }
+  .cat-table th { background: #eee; }
+  .cat-table td.cat-nombre { text-align: left; }
+  .cat-table input.cat-f { border: none; background: transparent; font-size: 13px;
+    font-family: inherit; width: 100%; }
+  .cat-table input.cat-f:focus { background: #fff; border: 1px solid #aaa;
+    outline: none; border-radius: 3px; }
+
+  /* ── Banner de backup ── */
+  #backupReminder { display: none; position: fixed; bottom: 0; left: 0; right: 0;
+    background: #fff3cd; border-top: 2px solid #ffc107; padding: 10px 16px;
+    font-size: 13px; color: #856404; align-items: center; gap: 12px; z-index: 100; flex-wrap: wrap; }
+  #backupReminder.on { display: flex; }
+  #backupReminder button { font-size: 12px; padding: 4px 12px; cursor: pointer;
+    border: 1px solid #b8860b; border-radius: 4px; background: #fff; }
+
+  /* ── Print ── */
+  @media print {
+    .no-print { display: none !important; }
+    .hist-section { display: none !important; }
+    #editBanner { display: none !important; }
+    .actions { display: none !important; }
+    body { background: #fff; max-width: 100%; padding: 4px; }
+    th { background: #ddd !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+
+  /* ── Responsive ── */
+  @media (max-width: 600px) {
+    body { padding: 10px; }
+    input.f.num { width: 52px; }
+    .btn { padding: 8px 12px; font-size: 13px; }
+    .actions { gap: 6px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     WIZARD — Configuración inicial (primer uso)
+     Se muestra cuando el catálogo está vacío. No se cierra con clic.
+═══════════════════════════════════════════════════════════════════ -->
+<div id="overlayWizard" class="overlay">
+  <div id="wizardBox">
+    <h2>Bienvenido — Configura tu catálogo de productos</h2>
+    <p style="font-size:14px; color:#666; margin-bottom:16px">
+      Ingresa todos los productos con su nombre y precio unitario.
+      Podrás editarlos en cualquier momento desde el botón <strong>Catálogo</strong>.
+    </p>
+    <table class="cat-table">
+      <thead>
+        <tr>
+          <th style="width:70px">Orden</th>
+          <th>Producto</th>
+          <th style="width:100px">Precio</th>
+          <th style="width:32px"></th>
+        </tr>
+      </thead>
+      <tbody id="wizardTbody"></tbody>
+    </table>
+    <button class="btn-add" onclick="wizardAdd()">+ Agregar producto</button>
+    <div style="margin-top:16px; display:flex; gap:10px; align-items:center; flex-wrap:wrap">
+      <button class="btn ok" onclick="wizardSave()">Comenzar</button>
+      <span style="font-size:12px; color:#999">Al menos un producto es necesario para continuar.</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     APP SHELL — Pantalla principal
+═══════════════════════════════════════════════════════════════════ -->
+<div id="appShell" style="display:none">
+
+<h2>Inventario</h2>
+
+<!-- Selector de tabla -->
+<div class="tabla-bar no-print">
+  <label for="tablaSelect">Tabla:</label>
+  <select id="tablaSelect" onchange="switchTable()"></select>
+  <button class="btn sm" onclick="newTable()">+ Nueva</button>
+  <button class="btn sm" onclick="renameTable()">Renombrar</button>
+  <button class="btn sm del" onclick="deleteTable()">Eliminar</button>
+</div>
+
+<!-- Banner: editando jornada histórica -->
+<div id="editBanner">
+  &#9888; Editando jornada histórica — los cambios se guardarán al presionar <strong>Guardar día</strong>.
+  <button onclick="cancelEdit()">Cancelar</button>
+</div>
+
+<!-- Fecha -->
+<div class="fecha-bar">
+  <label for="inputFecha">Fecha:</label>
+  <input type="date" id="inputFecha">
+</div>
+
+<!-- Tabla de jornada -->
+<table id="mainTable">
+  <thead>
+    <tr>
+      <th>Producto</th>
+      <th>Inicial</th>
+      <th>Venta</th>
+      <th>Precio</th>
+      <th>Importe</th>
+      <th>Final</th>
+      <th class="no-print" style="width:32px"></th>
+    </tr>
+  </thead>
+  <tbody id="mainTbody"></tbody>
+</table>
+
+<button class="btn-add no-print" onclick="addEntryRow()">+ Agregar producto</button>
+
+<div class="summary">Total Importe: <span id="totalImporte">0.00</span></div>
+<div id="detalle"></div>
+<div id="discrepancias"></div>
+
+<div class="actions no-print">
+  <button class="btn ok"  onclick="saveDay()">Guardar día</button>
+  <button class="btn"     onclick="exportCSV()">Exportar CSV</button>
+  <button class="btn"     onclick="exportPDF()">Exportar PDF</button>
+  <button class="btn"     onclick="window.print()">Imprimir</button>
+  <button class="btn"     onclick="openCatalog()">Catálogo</button>
+  <button class="btn del" onclick="clearDay()">Limpiar</button>
+</div>
+
+<!-- Historial -->
+<details class="hist-section no-print" id="histSection" open>
+  <summary>Historial de jornadas</summary>
+  <ul class="hist-list" id="histList"></ul>
+</details>
+
+</div><!-- fin appShell -->
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     MODAL — Ver jornada del historial
+═══════════════════════════════════════════════════════════════════ -->
+<div class="overlay" id="overlayHist">
+  <div class="modal">
+    <button class="modal-x" onclick="closeModal('overlayHist')">&#x2715;</button>
+    <h3 id="mFecha"></h3>
+    <p><strong>Tabla:</strong> <span id="mTabla"></span> &nbsp;|&nbsp; <strong>Total:</strong> <span id="mTotal"></span></p>
+    <div id="mDetalle"></div>
+    <div id="mDiscrep"></div>
+    <table style="margin-top:12px">
+      <thead>
+        <tr><th>Producto</th><th>Inicial</th><th>Venta</th><th>Precio</th><th>Importe</th><th>Final</th></tr>
+      </thead>
+      <tbody id="mTbody"></tbody>
+    </table>
+    <div class="modal-footer">
+      <button class="btn ok" onclick="editDay()">Editar esta jornada</button>
+      <button class="btn" onclick="closeModal('overlayHist')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     MODAL — Gestión de catálogo
+═══════════════════════════════════════════════════════════════════ -->
+<div class="overlay" id="overlayCatalog">
+  <div class="modal">
+    <button class="modal-x" onclick="closeModal('overlayCatalog')">&#x2715;</button>
+    <h3>Catálogo de Productos</h3>
+    <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px">
+      <button class="btn sm" onclick="catalogSortAZ()">Ordenar A&#x2192;Z</button>
+      <button class="btn sm" onclick="catalogExportJSON()">Exportar JSON</button>
+      <label class="btn sm" style="cursor:pointer; margin:0">
+        Importar JSON
+        <input type="file" accept=".json" style="display:none" onchange="catalogImportJSON(this)">
+      </label>
+    </div>
+    <table class="cat-table">
+      <thead>
+        <tr>
+          <th style="width:70px">Orden</th>
+          <th>Producto</th>
+          <th style="width:100px">Precio</th>
+          <th style="width:32px"></th>
+        </tr>
+      </thead>
+      <tbody id="catalogTbody"></tbody>
+    </table>
+    <button class="btn-add" onclick="catalogAdd()">+ Agregar producto</button>
+    <div class="modal-footer">
+      <button class="btn ok" onclick="catalogSave()">Guardar catálogo</button>
+      <button class="btn" onclick="closeModal('overlayCatalog')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     Banner de recordatorio de respaldo
+═══════════════════════════════════════════════════════════════════ -->
+<div id="backupReminder">
+  <span>&#128190; Recordatorio: exporta tu historial en CSV periódicamente para no perder datos.</span>
+  <button onclick="exportCSV()">Exportar CSV ahora</button>
+  <button onclick="closeBackup()">Entendido</button>
+</div>
+
+<script>
+'use strict';
+
+// ═══════════════════════════════════════════════════════════════════════
+// Claves de almacenamiento (compatibles con app iOS/Android)
+// ═══════════════════════════════════════════════════════════════════════
+const K = {
+  CATALOG:   'inv2_catalog',
+  TABLES:    'inv2_tables',
+  ACTIVE:    'inv2_active',
+  HIST:      'inv2_hist',
+  SAVECOUNT: 'inv2_save_count',
+  cur: t => 'inv2_cur_' + t,
+};
+
+// ═══════════════════════════════════════════════════════════════════════
+// Estado global
+// ═══════════════════════════════════════════════════════════════════════
+let activeTable = '';
+let histViewIdx = null;
+
+// ═══════════════════════════════════════════════════════════════════════
+// Utilidades
+// ═══════════════════════════════════════════════════════════════════════
+const today = () => new Date().toISOString().slice(0, 10);
+const r2 = n => Math.round(n * 100) / 100;
+const esc = s => String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+const $ = id => document.getElementById(id);
+
+function jsonGet(key, fallback) {
+  try { const r = localStorage.getItem(key); return r ? JSON.parse(r) : fallback; }
+  catch { return fallback; }
+}
+function jsonSet(key, val) { localStorage.setItem(key, JSON.stringify(val)); }
+
+// ═══════════════════════════════════════════════════════════════════════
+// Catálogo — almacenamiento
+// ═══════════════════════════════════════════════════════════════════════
+const getCatalog = () => jsonGet(K.CATALOG, []);
+const setCatalog = arr => jsonSet(K.CATALOG, arr);
+
+// ═══════════════════════════════════════════════════════════════════════
+// Catálogo — filas (compartido entre wizard y modal)
+// ═══════════════════════════════════════════════════════════════════════
+function makeCatRow(ctx, item) {
+  item = item || { nombre: '', precio: 0 };
+  const tr = document.createElement('tr');
+  const upFn = ctx === 'w' ? 'wizardUp(this)' : 'catalogUp(this)';
+  const dnFn = ctx === 'w' ? 'wizardDown(this)' : 'catalogDown(this)';
+  const rmFn = ctx === 'w' ? 'wizardRm(this)' : 'catalogRm(this)';
+  tr.innerHTML = `
+    <td style="white-space:nowrap">
+      <button class="btn-order" onclick="${upFn}" title="Subir">&#9650;</button>
+      <button class="btn-order" onclick="${dnFn}" title="Bajar">&#9660;</button>
+    </td>
+    <td class="cat-nombre">
+      <input class="cat-f cat-n" value="${esc(item.nombre)}" placeholder="Nombre del producto">
+    </td>
+    <td>
+      <input class="cat-f cat-p" type="number" min="0" step="0.01"
+        value="${item.precio || 0}" style="width:90px; text-align:right">
+    </td>
+    <td><button class="btn-rm" onclick="${rmFn}" title="Eliminar">&#x2715;</button></td>`;
+  return tr;
+}
+
+function refreshOrderBtns(tbodyId) {
+  const rows = $( tbodyId).querySelectorAll('tr');
+  rows.forEach((tr, i) => {
+    const btns = tr.querySelectorAll('.btn-order');
+    btns[0].disabled = i === 0;
+    btns[1].disabled = i === rows.length - 1;
+  });
+}
+
+function readCatRows(tbodyId) {
+  return Array.from($(tbodyId).querySelectorAll('tr'))
+    .map(tr => ({
+      nombre: tr.querySelector('.cat-n').value.trim(),
+      precio: parseFloat(tr.querySelector('.cat-p').value) || 0,
+    }))
+    .filter(p => p.nombre !== '');
+}
+
+function moveRow(btn, dir, tbodyId) {
+  const tr = btn.closest('tr');
+  const tbody = $(tbodyId);
+  const rows = Array.from(tbody.querySelectorAll('tr'));
+  const idx = rows.indexOf(tr);
+  if (dir === -1 && idx > 0) tbody.insertBefore(tr, rows[idx - 1]);
+  else if (dir === 1 && idx < rows.length - 1) tbody.insertBefore(rows[idx + 1], tr);
+  refreshOrderBtns(tbodyId);
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// Wizard
+// ═══════════════════════════════════════════════════════════════════════
+function showWizard() {
+  $('overlayWizard').classList.add('on');
+  const cat = getCatalog();
+  const tbody = $('wizardTbody');
+  tbody.innerHTML = '';
+  if (cat.length > 0) cat.forEach(p => tbody.appendChild(makeCatRow('w', p)));
+  else tbody.appendChild(makeCatRow('w'));
+  refreshOrderBtns('wizardTbody');
+}
+
+function wizardAdd() {
+  $('wizardTbody').appendChild(makeCatRow('w'));
+  refreshOrderBtns('wizardTbody');
+}
+function wizardRm(btn) { btn.closest('tr').remove(); refreshOrderBtns('wizardTbody'); }
+function wizardUp(btn) { moveRow(btn, -1, 'wizardTbody'); }
+function wizardDown(btn) { moveRow(btn, 1, 'wizardTbody'); }
+
+function wizardSave() {
+  const items = readCatRows('wizardTbody');
+  if (items.length === 0) { alert('Agrega al menos un producto para continuar.'); return; }
+  setCatalog(items);
+  $('overlayWizard').classList.remove('on');
+  startApp();
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// Catálogo — modal
+// ═══════════════════════════════════════════════════════════════════════
+function openCatalog() {
+  catalogRender(getCatalog());
+  openModal('overlayCatalog');
+}
+
+function catalogRender(items) {
+  const tbody = $('catalogTbody');
+  tbody.innerHTML = '';
+  items.forEach(p => tbody.appendChild(makeCatRow('c', p)));
+  refreshOrderBtns('catalogTbody');
+}
+
+function catalogAdd() {
+  $('catalogTbody').appendChild(makeCatRow('c'));
+  refreshOrderBtns('catalogTbody');
+}
+function catalogRm(btn) { btn.closest('tr').remove(); refreshOrderBtns('catalogTbody'); }
+function catalogUp(btn) { moveRow(btn, -1, 'catalogTbody'); }
+function catalogDown(btn) { moveRow(btn, 1, 'catalogTbody'); }
+
+function catalogSortAZ() {
+  const items = readCatRows('catalogTbody');
+  items.sort((a, b) => a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' }));
+  catalogRender(items);
+}
+
+function catalogSave() {
+  const items = readCatRows('catalogTbody');
+  if (items.length === 0) { alert('El catálogo no puede quedar vacío.'); return; }
+  setCatalog(items);
+  closeModal('overlayCatalog');
+}
+
+function catalogExportJSON() {
+  const blob = new Blob([JSON.stringify(getCatalog(), null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'catalogo_inventario.json';
+  a.click();
+}
+
+function catalogImportJSON(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!Array.isArray(data)) throw new Error('Debe ser un array JSON');
+      if (!data.every(p => typeof p === 'object' && 'nombre' in p))
+        throw new Error('Cada elemento debe tener al menos "nombre"');
+      const items = data.map(p => ({ nombre: String(p.nombre || ''), precio: parseFloat(p.precio) || 0 }));
+      catalogRender(items);
+    } catch (err) { alert('Error al importar: ' + err.message); }
+    input.value = '';
+  };
+  reader.readAsText(file);
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// Gestión de tablas
+// ═══════════════════════════════════════════════════════════════════════
+const getTables = () => jsonGet(K.TABLES, ['Tabla 1']);
+const setTables = t => jsonSet(K.TABLES, t);
+
+function renderTableSelect() {
+  const sel = $('tablaSelect');
+  sel.innerHTML = getTables().map(t =>
+    `<option value="${esc(t)}" ${t === activeTable ? 'selected' : ''}>${esc(t)}</option>`
+  ).join('');
+}
+
+function switchTable() {
+  saveLocal();
+  activeTable = $('tablaSelect').value;
+  localStorage.setItem(K.ACTIVE, activeTable);
+  cancelEdit();
+  loadLocal();
+  renderHistory();
+}
+
+function newTable() {
+  const name = prompt('Nombre de la nueva tabla:');
+  if (!name || !name.trim()) return;
+  const tables = getTables();
+  if (tables.includes(name.trim())) { alert('Ya existe una tabla con ese nombre.'); return; }
+  saveLocal();
+  tables.push(name.trim());
+  setTables(tables);
+  activeTable = name.trim();
+  localStorage.setItem(K.ACTIVE, activeTable);
+  renderTableSelect();
+  cancelEdit();
+  loadLocal();
+  renderHistory();
+}
+
+function renameTable() {
+  const newName = prompt(`Nuevo nombre para "${activeTable}":`, activeTable);
+  if (!newName || !newName.trim() || newName.trim() === activeTable) return;
+  const tables = getTables();
+  if (tables.includes(newName.trim())) { alert('Ya existe una tabla con ese nombre.'); return; }
+
+  // Mover sesión guardada
+  const cur = localStorage.getItem(K.cur(activeTable));
+  if (cur) localStorage.setItem(K.cur(newName.trim()), cur);
+  localStorage.removeItem(K.cur(activeTable));
+
+  // Actualizar historial
+  const hist = getHist().map(d => d.tabla === activeTable ? { ...d, tabla: newName.trim() } : d);
+  setHist(hist);
+
+  // Actualizar tablas
+  const idx = tables.indexOf(activeTable);
+  tables[idx] = newName.trim();
+  setTables(tables);
+  activeTable = newName.trim();
+  localStorage.setItem(K.ACTIVE, activeTable);
+  renderTableSelect();
+  renderHistory();
+}
+
+function deleteTable() {
+  const tables = getTables();
+  if (tables.length === 1) { alert('No puedes eliminar la única tabla existente.'); return; }
+  if (!confirm(`¿Eliminar la tabla "${activeTable}" y sus datos actuales?\n(El historial guardado se conserva)`)) return;
+  localStorage.removeItem(K.cur(activeTable));
+  const idx = tables.indexOf(activeTable);
+  tables.splice(idx, 1);
+  setTables(tables);
+  activeTable = tables[0];
+  localStorage.setItem(K.ACTIVE, activeTable);
+  renderTableSelect();
+  cancelEdit();
+  loadLocal();
+  renderHistory();
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// Filas de jornada
+// ═══════════════════════════════════════════════════════════════════════
+function makeEntryRow({ nombre = '', precio = 0, inicial = '', venta = '', final: fin = '' } = {}) {
+  const tr = document.createElement('tr');
+  const nameHtml = nombre
+    ? `<input class="f nombre" value="${esc(nombre)}" readonly tabindex="-1">`
+    : `<input class="f nombre" value="" placeholder="Producto">`;
+  tr.innerHTML = `
+    <td class="nombre-cell">${nameHtml}</td>
+    <td><input class="f num inicial" value="${esc(String(inicial))}"></td>
+    <td><input class="f num venta" value="${esc(String(venta))}"></td>
+    <td><input class="f num precio" value="${esc(String(precio))}"></td>
+    <td><input class="f num importe" readonly value=""></td>
+    <td><input class="f num final" value="${esc(String(fin))}"></td>
+    <td class="no-print">
+      <button class="btn-rm" title="Eliminar" onclick="removeEntryRow(this)">&#x2715;</button>
+    </td>`;
+  return tr;
+}
+
+function addEntryRow(data) {
+  $('mainTbody').appendChild(makeEntryRow(data || {}));
+  updateSummary();
+  saveLocal();
+}
+
+function removeEntryRow(btn) {
+  btn.closest('tr').remove();
+  updateSummary();
+  saveLocal();
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// Cálculos
+// ═══════════════════════════════════════════════════════════════════════
+function calcRow(tr) {
+  const nombre = tr.querySelector('.nombre').value.trim();
+  const inicial = parseFloat(tr.querySelector('.inicial').value) || 0;
+  const venta = parseFloat(tr.querySelector('.venta').value) || 0;
+  const precio = parseFloat(tr.querySelector('.precio').value) || 0;
+  const finalStr = tr.querySelector('.final').value.trim();
+
+  const importe = r2(venta * precio);
+  tr.querySelector('.importe').value = importe > 0 ? importe.toFixed(2) : '';
+
+  let discrepancia = null;
+  if (finalStr !== '') {
+    const diff = r2(parseFloat(finalStr) - (inicial - venta));
+    if (diff !== 0) discrepancia = { nombre, diff };
+  }
+  return { nombre, importe, discrepancia };
+}
+
+function updateSummary() {
+  let total = 0;
+  let htmlDet = '<strong>Detalle Importe:</strong><ul>';
+  let htmlDisc = '<strong>Discrepancias:</strong><ul>';
+  let hasDet = false, hasDisc = false;
+
+  $('mainTbody').querySelectorAll('tr').forEach(tr => {
+    const { nombre, importe, discrepancia } = calcRow(tr);
+    total += importe;
+    if (importe > 0) {
+      htmlDet += `<li>${esc(nombre)}: ${importe.toFixed(2)}</li>`;
+      hasDet = true;
+    }
+    if (discrepancia) {
+      const s = discrepancia.diff > 0 ? '+' : '';
+      htmlDisc += `<li class="disc">Atención: ${s}${discrepancia.diff.toFixed(2)} ${esc(discrepancia.nombre)}</li>`;
+      hasDisc = true;
+    }
+  });
+
+  htmlDet += '</ul>'; htmlDisc += '</ul>';
+  $('totalImporte').textContent = total.toFixed(2);
+  $('detalle').innerHTML = hasDet ? htmlDet : '';
+  $('discrepancias').innerHTML = hasDisc ? htmlDisc : '';
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// Persistencia local (sesión actual)
+// ═══════════════════════════════════════════════════════════════════════
+function readEntries() {
+  return Array.from($('mainTbody').querySelectorAll('tr')).map(tr => ({
+    nombre: tr.querySelector('.nombre').value,
+    inicial: tr.querySelector('.inicial').value,
+    venta: tr.querySelector('.venta').value,
+    precio: tr.querySelector('.precio').value,
+    final: tr.querySelector('.final').value,
+  }));
+}
+
+function saveLocal() {
+  if (!activeTable) return;
+  try {
+    localStorage.setItem(K.cur(activeTable), JSON.stringify({
+      fecha: $('inputFecha').value,
+      filas: readEntries(),
+    }));
+  } catch (e) { console.warn('Error al guardar:', e); }
+}
+
+function loadLocal() {
+  if (!activeTable) return;
+  const datos = jsonGet(K.cur(activeTable), null);
+  const tbody = $('mainTbody');
+  tbody.innerHTML = '';
+
+  if (datos && datos.filas && datos.filas.length) {
+    $('inputFecha').value = datos.fecha || today();
+    datos.filas.forEach(f => tbody.appendChild(makeEntryRow(f)));
+  } else {
+    $('inputFecha').value = today();
+    getCatalog().forEach(p => tbody.appendChild(makeEntryRow({ nombre: p.nombre, precio: p.precio })));
+  }
+  updateSummary();
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// Historial
+// ═══════════════════════════════════════════════════════════════════════
+const getHist = () => jsonGet(K.HIST, []);
+const setHist = h => jsonSet(K.HIST, h);
+
+function saveDay() {
+  const fecha = $('inputFecha').value;
+  if (!fecha) { alert('Indica la fecha de la jornada.'); return; }
+
+  const filas = readEntries();
+  const total = r2(filas.reduce((s, f) => s + (parseFloat(f.precio || 0) * parseFloat(f.venta || 0)), 0));
+
+  const hist = getHist().filter(d => !(d.fecha === fecha && d.tabla === activeTable));
+  hist.unshift({ fecha, tabla: activeTable, totalImporte: total, filas });
+  hist.sort((a, b) => b.fecha.localeCompare(a.fecha) || a.tabla.localeCompare(b.tabla));
+  setHist(hist);
+  renderHistory();
+  cancelEdit();
+  bumpSaveCount();
+  alert(`Jornada del ${fecha} (${activeTable}) guardada.`);
+}
+
+function renderHistory() {
+  const hist = getHist();
+  const ul = $('histList');
+  if (!hist.length) {
+    ul.innerHTML = '<li style="color:#999; padding:10px">Sin jornadas registradas.</li>';
+    return;
+  }
+  ul.innerHTML = hist.map((d, i) => `
+    <li>
+      <span class="hist-meta">
+        <strong>${esc(d.fecha)}</strong>
+        <span class="tabla-tag">${esc(d.tabla || '—')}</span>
+      </span>
+      <span style="font-size:13px">Total: ${d.totalImporte.toFixed(2)}</span>
+      <span class="hist-btns">
+        <button onclick="viewDay(${i})">Ver / Editar</button>
+        <button class="b-del" title="Eliminar" onclick="deleteDay(${i})">&#x1F5D1;</button>
+      </span>
+    </li>`).join('');
+}
+
+function viewDay(i) {
+  histViewIdx = i;
+  const d = getHist()[i];
+  $('mFecha').textContent = `Jornada: ${d.fecha}`;
+  $('mTabla').textContent = d.tabla || '—';
+  $('mTotal').textContent = d.totalImporte.toFixed(2);
+
+  let hDet = '<strong>Detalle:</strong><ul>';
+  let hDisc = '<strong>Discrepancias:</strong><ul>';
+  let hasDet = false, hasDisc = false;
+  const tbody = $('mTbody');
+  tbody.innerHTML = '';
+
+  d.filas.forEach(f => {
+    const imp = r2((parseFloat(f.precio || 0)) * (parseFloat(f.venta || 0)));
+    const inic = parseFloat(f.inicial) || 0;
+    const venta = parseFloat(f.venta) || 0;
+    const finS = String(f.final || '').trim();
+
+    if (imp > 0) { hDet += `<li>${esc(f.nombre)}: ${imp.toFixed(2)}</li>`; hasDet = true; }
+    if (finS !== '') {
+      const diff = r2(parseFloat(finS) - (inic - venta));
+      if (diff !== 0) {
+        hDisc += `<li class="disc">Atención: ${diff > 0 ? '+' : ''}${diff.toFixed(2)} ${esc(f.nombre)}</li>`;
+        hasDisc = true;
+      }
+    }
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${esc(f.nombre)}</td><td>${esc(String(f.inicial||''))}</td>` +
+      `<td>${esc(String(f.venta||''))}</td><td>${esc(String(f.precio||''))}</td>` +
+      `<td>${imp > 0 ? imp.toFixed(2) : ''}</td><td>${esc(String(f.final||''))}</td>`;
+    tbody.appendChild(tr);
+  });
+
+  hDet += '</ul>'; hDisc += '</ul>';
+  $('mDetalle').innerHTML = hasDet ? hDet : '';
+  $('mDiscrep').innerHTML = hasDisc ? hDisc : '';
+  openModal('overlayHist');
+}
+
+function editDay() {
+  if (histViewIdx === null) return;
+  const d = getHist()[histViewIdx];
+
+  // Si la jornada es de otra tabla, cambiar
+  if (d.tabla && d.tabla !== activeTable) {
+    saveLocal();
+    const tables = getTables();
+    if (!tables.includes(d.tabla)) { tables.push(d.tabla); setTables(tables); }
+    activeTable = d.tabla;
+    localStorage.setItem(K.ACTIVE, activeTable);
+    renderTableSelect();
+  }
+
+  $('inputFecha').value = d.fecha;
+  const tbody = $('mainTbody');
+  tbody.innerHTML = '';
+  d.filas.forEach(f => tbody.appendChild(makeEntryRow(f)));
+  updateSummary();
+
+  $('editBanner').classList.add('on');
+  closeModal('overlayHist');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function cancelEdit() {
+  $('editBanner').classList.remove('on');
+  histViewIdx = null;
+}
+
+function deleteDay(i) {
+  const hist = getHist();
+  const d = hist[i];
+  if (!confirm(`¿Eliminar la jornada del ${d.fecha} (${d.tabla}) del historial?`)) return;
+  hist.splice(i, 1);
+  setHist(hist);
+  renderHistory();
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// Backup reminder
+// ═══════════════════════════════════════════════════════════════════════
+function bumpSaveCount() {
+  let count = parseInt(localStorage.getItem(K.SAVECOUNT) || '0', 10) || 0;
+  count++;
+  localStorage.setItem(K.SAVECOUNT, String(count));
+  if (count % 7 === 0) $('backupReminder').classList.add('on');
+}
+
+function closeBackup() { $('backupReminder').classList.remove('on'); }
+
+// ═══════════════════════════════════════════════════════════════════════
+// Exportar CSV
+// ═══════════════════════════════════════════════════════════════════════
+function exportCSV() {
+  const fecha = $('inputFecha').value || 'sin-fecha';
+  const filas = readEntries();
+  const total = r2(filas.reduce((s, f) => s + (parseFloat(f.precio || 0) * parseFloat(f.venta || 0)), 0));
+
+  let csv = 'Tabla,Fecha,Producto,Inicial,Venta,Precio,Importe,Final\n';
+  filas.forEach(f => {
+    const imp = r2(parseFloat(f.precio || 0) * parseFloat(f.venta || 0));
+    csv += `"${activeTable}",${fecha},"${f.nombre}",${f.inicial},${f.venta},${f.precio},${imp.toFixed(2)},${f.final}\n`;
+  });
+  csv += `\n,,,,,Total,${total.toFixed(2)},\n`;
+
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
+  a.download = `inventario_${activeTable}_${fecha}.csv`;
+  a.click();
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// Exportar PDF (abre ventana con HTML formateado para imprimir)
+// ═══════════════════════════════════════════════════════════════════════
+function exportPDF() {
+  const fecha = $('inputFecha').value || '—';
+  const filas = readEntries();
+  const total = r2(filas.reduce((s, f) => s + (parseFloat(f.precio || 0) * parseFloat(f.venta || 0)), 0));
+
+  const rows = filas
+    .filter(f => parseFloat(f.venta) > 0 || parseFloat(f.inicial) > 0)
+    .map(f => {
+      const imp = r2(parseFloat(f.precio || 0) * parseFloat(f.venta || 0));
+      return `<tr>
+        <td>${esc(f.nombre)}</td>
+        <td>${esc(String(f.inicial||''))}</td>
+        <td>${esc(String(f.venta||''))}</td>
+        <td>${esc(String(f.precio||''))}</td>
+        <td>${imp > 0 ? imp.toFixed(2) : ''}</td>
+        <td>${esc(String(f.final||''))}</td>
+      </tr>`;
+    }).join('');
+
+  const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+  <title>Inventario ${esc(activeTable)} — ${fecha}</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 24px; font-size: 12px; }
+    h2 { margin-bottom: 4px; }
+    .meta { margin-bottom: 14px; color: #555; font-size: 13px; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #aaa; padding: 5px 8px; text-align: center; }
+    th { background: #ddd; }
+    td:first-child { text-align: left; }
+    .total { margin-top: 12px; font-size: 14px; font-weight: bold; }
+  </style></head><body>
+  <h2>Inventario — ${esc(activeTable)}</h2>
+  <div class="meta">Fecha: <strong>${esc(fecha)}</strong></div>
+  <table>
+    <thead><tr><th>Producto</th><th>Inicial</th><th>Venta</th><th>Precio</th><th>Importe</th><th>Final</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table>
+  <div class="total">Total Importe: ${total.toFixed(2)}</div>
+  <script>window.onload = function(){ window.print(); }<\/script>
+  </body></html>`;
+
+  const win = window.open('', '_blank');
+  win.document.write(html);
+  win.document.close();
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// Limpiar jornada
+// ═══════════════════════════════════════════════════════════════════════
+function clearDay() {
+  if (!confirm('¿Limpiar la jornada actual?\n(El catálogo e historial no se borran)')) return;
+  localStorage.removeItem(K.cur(activeTable));
+  cancelEdit();
+  loadLocal();
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// Modales
+// ═══════════════════════════════════════════════════════════════════════
+function openModal(id) { $(id).classList.add('on'); }
+function closeModal(id) { $(id).classList.remove('on'); }
+
+document.querySelectorAll('.overlay').forEach(el => {
+  el.addEventListener('click', e => {
+    if (el.id === 'overlayWizard') return; // Wizard no se cierra con clic
+    if (e.target === el) el.classList.remove('on');
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// Inicialización
+// ═══════════════════════════════════════════════════════════════════════
+function startApp() {
+  $('appShell').style.display = 'block';
+
+  const tables = getTables();
+  const saved = localStorage.getItem(K.ACTIVE);
+  activeTable = (saved && tables.includes(saved)) ? saved : tables[0];
+  localStorage.setItem(K.ACTIVE, activeTable);
+
+  renderTableSelect();
+  loadLocal();
+  renderHistory();
+
+  // Auto-guardado al editar cualquier campo de la tabla
+  $('mainTable').addEventListener('input', () => { updateSummary(); saveLocal(); });
+  $('inputFecha').addEventListener('change', saveLocal);
+}
+
+// Punto de entrada
+(function init() {
+  if (getCatalog().length === 0) showWizard();
+  else startApp();
+})();
+</script>
+
+</body>
+</html>
