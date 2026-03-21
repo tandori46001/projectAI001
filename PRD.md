@@ -1,6 +1,6 @@
 # PRD — Sistema de Control de Inventario Diario
 
-**Versión:** 5.0
+**Versión:** 5.1
 **Fecha:** 2026-03-20
 **Estado:** Activo
 
@@ -10,7 +10,7 @@
 
 Herramienta de control de inventario diario para puntos de venta de productos varios (dulces, bebidas, artículos de consumo). Permite al encargado registrar el movimiento de stock de cada producto por jornada, calcular automáticamente los ingresos del día y detectar diferencias entre el inventario físico real y el esperado.
 
-Disponible como **app web HTML** (archivo único, sin servidor) y **app nativa iOS** (SwiftUI). Ambas implementaciones comparten la misma lógica de negocio y estructura de datos.
+Disponible como **app web HTML** (archivo único, sin servidor), **app nativa iOS** (SwiftUI) y **app nativa Android** (Jetpack Compose). Todas las implementaciones comparten la misma lógica de negocio y estructura de datos.
 
 ---
 
@@ -86,13 +86,15 @@ No se incluye ninguna funcionalidad que no tenga un uso claro e inmediato en el 
 |---|---|---|
 | Web | HTML + CSS + JavaScript vanilla (archivo único) | `inventario2.html` |
 | iOS | SwiftUI + ObservableObject (iOS 17+) | `InventarioApp/` (9 archivos Swift) |
+| Android | Kotlin + Jetpack Compose + Material 3 (API 26+, Android 8.0+) | `android/` (app Kotlin) |
 
 ### 7.2 Almacenamiento
 
-Ambas plataformas usan almacenamiento local con codificación JSON:
+Todas las plataformas usan almacenamiento local con codificación JSON:
 
 - **Web**: `localStorage`
 - **iOS**: `UserDefaults` con `JSONEncoder` / `JSONDecoder`
+- **Android**: `SharedPreferences` con `Gson` / `kotlinx.serialization`
 
 No hay servidor, no hay base de datos, no hay sincronización. Todo opera offline en el dispositivo.
 
@@ -107,7 +109,7 @@ No hay servidor, no hay base de datos, no hay sincronización. Todo opera offlin
 | `inv2_sessions` | `{String: SavedSession}` | Diccionario: nombre de tabla → sesión actual (fecha + filas) |
 | `inv2_save_count` | `Int` | Contador de guardados (para recordatorio de backup cada 7) |
 
-> Nota: en la versión web, las sesiones se guardan como claves individuales `inv2_cur_[nombreTabla]`. En iOS se usa un diccionario único `inv2_sessions`.
+> Nota: en la versión web, las sesiones se guardan como claves individuales `inv2_cur_[nombreTabla]`. En iOS y Android se usa un diccionario único `inv2_sessions`.
 
 ---
 
@@ -404,11 +406,14 @@ Tabla,Fecha,Producto,Inicial,Venta,Precio,Importe,Final
 
 ---
 
-## 10. Especificación de UI (iOS)
+## 10. Especificación de UI (iOS y Android)
 
 ### 10.1 Estructura General
 
-Toda la app usa un **único ScrollView** que contiene todas las secciones. Esto es crítico para que el usuario pueda acceder a todas las funcionalidades haciendo scroll.
+Tanto iOS como Android usan un **único scroll vertical** que contiene todas las secciones. Esto es crítico para que el usuario pueda acceder a todas las funcionalidades haciendo scroll.
+
+- **iOS**: `ScrollView` dentro de `NavigationStack`
+- **Android**: `LazyColumn` dentro de `Scaffold` con `TopAppBar`
 
 ```
 NavigationStack
@@ -454,19 +459,25 @@ Cada producto se muestra como una tarjeta con fondo gris claro y esquinas redond
 
 ### 10.3 Modales/Sheets
 
-- **Catálogo:** NavigationStack con lista editable (drag-to-reorder, swipe-to-delete), botones de acción (A→Z, exportar JSON, importar JSON), guardar/cancelar
-- **Historial completo:** NavigationStack con lista de jornadas, swipe-to-delete, tap para ver detalle
+- **Catálogo:** lista editable (drag-to-reorder, swipe-to-delete), botones de acción (A→Z, exportar JSON, importar JSON), guardar/cancelar
+- **Historial completo:** lista de jornadas, swipe-to-delete, tap para ver detalle
 - **Detalle de jornada:** tabla de datos, secciones de detalle/discrepancias, botón "Editar esta jornada"
-- **Share sheet:** UIActivityViewController para compartir archivos CSV/PDF
+- **Compartir archivos:**
+  - iOS: `UIActivityViewController` (share sheet)
+  - Android: `Intent.ACTION_SEND` con `FileProvider` (share sheet nativo)
 
-### 10.4 Alertas
+### 10.4 Alertas / Diálogos
 
-- Nueva tabla: TextField para el nombre
-- Renombrar tabla: TextField pre-rellenado con nombre actual
+- Nueva tabla: campo de texto para el nombre
+- Renombrar tabla: campo pre-rellenado con nombre actual
 - Eliminar tabla: confirmación destructiva
 - Limpiar: confirmación destructiva
 - Guardar día: mensaje de éxito
 - Recordatorio de backup: con opción de exportar o cerrar
+
+**Implementación:**
+- iOS: `alert()` con TextField
+- Android: `AlertDialog` de Material 3 con `OutlinedTextField`
 
 ---
 
@@ -537,7 +548,9 @@ Cada producto se muestra como una tarjeta con fondo gris claro y esquinas redond
 
 ---
 
-## 15. Estructura de Archivos (iOS)
+## 15. Estructura de Archivos
+
+### 15.1 iOS (SwiftUI)
 
 ```
 InventarioApp/
@@ -552,6 +565,62 @@ InventarioApp/
 └── Exporters.swift         — Generación de CSV y PDF
 ```
 
+### 15.2 Android (Jetpack Compose + Kotlin)
+
+```
+android/app/src/main/java/com/inventario/app/
+├── MainActivity.kt              — Activity única, punto de entrada
+├── InventarioApp.kt             — @Composable raíz, provee DataStore vía CompositionLocal
+│
+├── model/
+│   ├── CatalogProduct.kt        — data class: id, nombre, precio
+│   ├── JornadaEntry.kt          — data class: id, nombre, inicial, venta, precio, finalVal + computadas
+│   ├── Jornada.kt               — data class: id, fecha, tabla, totalImporte, filas
+│   └── SavedSession.kt          — data class: fecha, filas
+│
+├── data/
+│   └── DataStore.kt             — Lógica de negocio y persistencia (SharedPreferences + Gson/kotlinx.serialization)
+│
+├── ui/
+│   ├── ContentScreen.kt         — Router: wizard o main
+│   ├── WizardScreen.kt          — Configuración inicial del catálogo
+│   ├── MainScreen.kt            — Pantalla principal (LazyColumn con todo) + EntryCard
+│   ├── CatalogSheet.kt          — BottomSheet/Dialog para gestión del catálogo
+│   ├── HistorySheet.kt          — BottomSheet/Dialog para historial + detalle
+│   └── components/
+│       ├── EntryCard.kt          — Tarjeta de producto con campos editables
+│       ├── TableSelector.kt      — Selector de tabla + botones CRUD
+│       └── SummarySection.kt     — Total, detalle importe, discrepancias
+│
+└── export/
+    └── Exporters.kt              — Generación de CSV y PDF (android.graphics.pdf.PdfDocument)
+```
+
+**Dependencias Android:**
+- `androidx.compose.material3` — UI Material 3
+- `androidx.compose.ui` — Framework Compose
+- `androidx.lifecycle:lifecycle-viewmodel-compose` — ViewModel con Compose
+- `com.google.code.gson:gson` o `kotlinx-serialization-json` — Serialización JSON
+- `androidx.core:core-ktx` — FileProvider para compartir archivos
+- Min SDK: 26 (Android 8.0) — Target SDK: 34 (Android 14)
+
+**Equivalencias iOS → Android:**
+
+| Concepto | iOS (SwiftUI) | Android (Compose) |
+|---|---|---|
+| Estado reactivo | `@Published` + `ObservableObject` | `mutableStateOf` + `ViewModel` |
+| Inyección | `@EnvironmentObject` | `CompositionLocalProvider` o `hiltViewModel()` |
+| Scroll principal | `ScrollView` | `LazyColumn` |
+| Modales | `.sheet()` | `ModalBottomSheet` o `Dialog` |
+| Alertas con input | `.alert()` + TextField | `AlertDialog` + `OutlinedTextField` |
+| Compartir archivos | `UIActivityViewController` | `Intent.ACTION_SEND` + `FileProvider` |
+| Persistencia | `UserDefaults` | `SharedPreferences` |
+| Navegación | `NavigationStack` | `NavHost` + `NavController` (o single-screen con sheets) |
+| Selector | `Picker` | `ExposedDropdownMenuBox` |
+| DatePicker | `DatePicker` | `DatePickerDialog` (Material 3) |
+| Teclado numérico | `.keyboardType(.decimalPad)` | `keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)` |
+| PDF | `UIMarkupTextPrintFormatter` | `android.graphics.pdf.PdfDocument` |
+
 ---
 
 ## 16. Historial de Versiones
@@ -564,3 +633,4 @@ InventarioApp/
 | 3.0 | Múltiples tablas, corrección de jornadas cerradas, exportación a PDF |
 | 4.0 | Catálogo global único, configuración inicial guiada, eliminación individual, reordenamiento, ordenamiento alfabético. Aplicación de principios KISS y YAGNI |
 | 5.0 | Especificación técnica completa: modelos de datos, claves de persistencia, arquitectura de almacenamiento, especificación de UI para iOS, edge cases documentados, estructura de archivos Swift |
+| 5.1 | Plataforma Android: Jetpack Compose + Kotlin, estructura de archivos, dependencias, tabla de equivalencias iOS→Android, SharedPreferences para persistencia |
