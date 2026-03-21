@@ -570,38 +570,33 @@ InventarioApp/
 ```
 android/app/src/main/java/com/inventario/app/
 ├── MainActivity.kt              — Activity única, punto de entrada
-├── InventarioApp.kt             — @Composable raíz, provee DataStore vía CompositionLocal
 │
 ├── model/
-│   ├── CatalogProduct.kt        — data class: id, nombre, precio
-│   ├── JornadaEntry.kt          — data class: id, nombre, inicial, venta, precio, finalVal + computadas
-│   ├── Jornada.kt               — data class: id, fecha, tabla, totalImporte, filas
-│   └── SavedSession.kt          — data class: fecha, filas
+│   └── Models.kt                — data classes: CatalogProduct, JornadaEntry, Jornada, SavedSession
 │
 ├── data/
-│   └── DataStore.kt             — Lógica de negocio y persistencia (SharedPreferences + Gson/kotlinx.serialization)
+│   └── DataStore.kt             — Lógica de negocio y persistencia (SharedPreferences + Gson)
 │
 ├── ui/
 │   ├── ContentScreen.kt         — Router: wizard o main
 │   ├── WizardScreen.kt          — Configuración inicial del catálogo
-│   ├── MainScreen.kt            — Pantalla principal (LazyColumn con todo) + EntryCard
-│   ├── CatalogSheet.kt          — BottomSheet/Dialog para gestión del catálogo
-│   ├── HistorySheet.kt          — BottomSheet/Dialog para historial + detalle
-│   └── components/
-│       ├── EntryCard.kt          — Tarjeta de producto con campos editables
-│       ├── TableSelector.kt      — Selector de tabla + botones CRUD
-│       └── SummarySection.kt     — Total, detalle importe, discrepancias
+│   ├── MainScreen.kt            — Pantalla principal (LazyColumn con todas las secciones)
+│   ├── EntryCard.kt             — Tarjeta de producto con campos editables
+│   ├── CatalogDialog.kt         — Dialog fullscreen para gestión del catálogo
+│   ├── HistoryDialog.kt         — Dialog fullscreen para historial + detalle
+│   └── Theme.kt                 — Tema Material 3 (colores, tipografía)
 │
 └── export/
-    └── Exporters.kt              — Generación de CSV y PDF (android.graphics.pdf.PdfDocument)
+    └── Exporters.kt             — Generación de PDF (android.graphics.pdf.PdfDocument)
 ```
 
 **Dependencias Android:**
 - `androidx.compose.material3` — UI Material 3
 - `androidx.compose.ui` — Framework Compose
-- `androidx.lifecycle:lifecycle-viewmodel-compose` — ViewModel con Compose
-- `com.google.code.gson:gson` o `kotlinx-serialization-json` — Serialización JSON
+- `androidx.activity:activity-compose` — Integration Compose con Activity
+- `com.google.code.gson:gson:2.10.1` — Serialización JSON
 - `androidx.core:core-ktx` — FileProvider para compartir archivos
+- Compose BOM: `2024.01.00` — AGP: `8.2.2` — Kotlin: `1.9.22` — Gradle: `8.5`
 - Min SDK: 26 (Android 8.0) — Target SDK: 34 (Android 14)
 
 **Equivalencias iOS → Android:**

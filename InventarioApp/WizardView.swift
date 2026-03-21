@@ -1,81 +1,75 @@
 import SwiftUI
 
 struct WizardView: View {
-    @Environment(DataStore.self) private var store
-    @State private var products: [CatalogProduct] = [
-        CatalogProduct(nombre: "", precio: 0)
-    ]
-    @State private var isEditing = false
-
-    var canContinue: Bool {
-        products.contains { !$0.nombre.trimmingCharacters(in: .whitespaces).isEmpty && $0.precio > 0 }
-    }
+    @EnvironmentObject var store: DataStore
+    @State private var products: [CatalogProduct] = [CatalogProduct()]
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 16) {
+                Text("Configura tu catálogo de productos")
+                    .font(.headline)
+
+                Text("Ingresa todos los productos con su nombre y precio. Podrás editarlos en cualquier momento desde el botón Catálogo.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
                 List {
-                    Section {
-                        Text("Introduce los productos de tu inventario con su precio unitario.")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
+                    ForEach($products) { $product in
+                        HStack(spacing: 12) {
+                            TextField("Nombre del producto", text: $product.nombre)
+                                .textContentType(.name)
 
-                    Section("Productos") {
-                        ForEach($products) { $product in
-                            HStack {
-                                TextField("Nombre", text: $product.nombre)
-                                    .textContentType(.name)
-                                Divider()
-                                TextField("Precio", value: $product.precio, format: .number)
-                                    .keyboardType(.decimalPad)
-                                    .frame(width: 80)
-                                    .multilineTextAlignment(.trailing)
-                            }
-                        }
-                        .onDelete { indexSet in
-                            products.remove(atOffsets: indexSet)
-                        }
-                        .onMove { from, to in
-                            products.move(fromOffsets: from, toOffset: to)
+                            TextField("Precio", value: $product.precio, format: .number)
+                                .keyboardType(.decimalPad)
+                                .frame(width: 80)
+                                .multilineTextAlignment(.trailing)
                         }
                     }
-
-                    Section {
-                        Button {
-                            products.append(CatalogProduct(nombre: "", precio: 0))
-                        } label: {
-                            Label("Agregar producto", systemImage: "plus.circle.fill")
-                        }
+                    .onDelete { indexSet in
+                        products.remove(atOffsets: indexSet)
+                    }
+                    .onMove { source, destination in
+                        products.move(fromOffsets: source, toOffset: destination)
                     }
                 }
-                .environment(\.editMode, .constant(isEditing ? .active : .inactive))
+                .listStyle(.plain)
 
-                VStack(spacing: 12) {
-                    Button {
-                        isEditing.toggle()
-                    } label: {
-                        Label(isEditing ? "Listo" : "Reordenar", systemImage: isEditing ? "checkmark" : "arrow.up.arrow.down")
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.bordered)
+                Button {
+                    products.append(CatalogProduct())
+                } label: {
+                    Label("Agregar producto", systemImage: "plus")
+                }
 
+                HStack {
                     Button {
-                        let valid = products.filter {
-                            !$0.nombre.trimmingCharacters(in: .whitespaces).isEmpty && $0.precio > 0
-                        }
-                        store.completeWizard(products: valid)
+                        guardar()
                     } label: {
                         Text("Comenzar")
                             .font(.headline)
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.borderedProminent)
-                    .disabled(!canContinue)
+                    .tint(.green)
+
+                    Text("Al menos un producto es necesario.")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
                 }
-                .padding()
             }
-            .navigationTitle("Configurar Inventario")
+            .padding()
+            .navigationTitle("Bienvenido")
+            .toolbar {
+                EditButton()
+            }
         }
+    }
+
+    private func guardar() {
+        let valid = products.filter { !$0.nombre.trimmingCharacters(in: .whitespaces).isEmpty }
+        guard !valid.isEmpty else { return }
+        store.catalog = valid
+        store.saveCatalog()
+        store.loadCurrentSession()
     }
 }

@@ -1,82 +1,117 @@
-# InventarioApp
+# Inventario — Sistema de Control de Inventario Diario
 
-Aplicación iOS nativa para gestionar el inventario diario de un negocio (restaurante, tienda, bar, etc.). Permite registrar stock inicial, ventas y stock final de cada producto, calcular importes automáticamente, detectar discrepancias y mantener un historial de jornadas.
+Aplicación multiplataforma para gestionar el inventario diario de un negocio (restaurante, tienda, bar, etc.). Permite registrar stock inicial, ventas y stock final de cada producto, calcular importes automáticamente, detectar discrepancias y mantener un historial de jornadas.
 
-## Requisitos
+Disponible como **app iOS nativa** (SwiftUI) y **app Android nativa** (Jetpack Compose). Ambas comparten la misma lógica de negocio y estructura de datos.
+
+---
+
+## Funcionalidades
+
+- **Catálogo de productos**: alta, edición, eliminación, reordenamiento, ordenar A→Z, exportar/importar JSON
+- **Inventario diario**: stock inicial, ventas, stock final, precio por producto, cálculo automático de importes
+- **Detección de discrepancias**: alerta cuando el conteo físico no coincide con lo esperado
+- **Múltiples tablas**: crear, renombrar, eliminar tablas (turnos, sucursales, vendedores)
+- **Historial de jornadas**: guardado, consulta, edición y eliminación de jornadas pasadas
+- **Exportación**: CSV y PDF compartibles por WhatsApp, email, etc.
+- **Auto-guardado**: la sesión se guarda automáticamente al modificar cualquier campo
+- **Recordatorio de backup**: cada 7 guardados sugiere exportar datos
+
+---
+
+## iOS
+
+### Requisitos
 
 - iOS 17.0+
 - Xcode 15+
 - Swift 5.9+
 
-## Arquitectura
+### Arquitectura
 
 - **SwiftUI** para la interfaz
-- **@Observable** (Observation framework) como capa reactiva
+- **ObservableObject** como capa reactiva
 - **UserDefaults + JSON** para persistencia local
-- **Environment** para inyección del DataStore en todas las vistas
 
-No utiliza SwiftData, CoreData ni Combine.
-
-## Estructura del proyecto
+### Estructura
 
 ```
 InventarioApp/
-├── Models.swift          # Modelos de datos (CatalogProduct, JornadaEntry, Jornada, SavedSession)
-├── DataStore.swift       # Lógica de negocio y persistencia (UserDefaults)
-├── InventarioAppApp.swift # Punto de entrada de la app
-├── ContentView.swift     # Router: Wizard o MainView según estado del catálogo
-├── WizardView.swift      # Configuración inicial del catálogo de productos
-├── MainView.swift        # Pantalla principal con todas las secciones
-├── CatalogView.swift     # Gestión del catálogo (modal)
-├── HistorialView.swift   # Historial de jornadas y detalle (modal)
-├── ShareSheet.swift      # Exportación CSV/PDF y share sheet
-└── Assets.xcassets/      # Recursos gráficos
+├── InventarioApp.swift    — @main, crea DataStore como @StateObject
+├── Models.swift           — CatalogProduct, JornadaEntry, Jornada, SavedSession
+├── DataStore.swift        — Lógica de negocio y persistencia (UserDefaults)
+├── ContentView.swift      — Router: Wizard o MainView según estado del catálogo
+├── WizardView.swift       — Configuración inicial del catálogo
+├── MainView.swift         — Pantalla principal (ScrollView con todas las secciones)
+├── CatalogSheet.swift     — Modal de gestión del catálogo
+├── HistorySheet.swift     — Modal de historial + detalle
+└── Exporters.swift        — Generación de CSV y PDF
 ```
 
-## Funcionalidades
+### Instalación en iPhone
 
-### Catálogo de productos
-- Alta, edición y eliminación de productos (nombre + precio)
-- Reordenamiento con drag & drop
-- Ordenar alfabéticamente (A→Z)
-- Exportar/importar catálogo en formato JSON
+1. Abrir `InventarioApp.xcodeproj` en Xcode
+2. Seleccionar tu iPhone como destino (necesita estar conectado por cable)
+3. En Xcode: Signing & Capabilities → seleccionar tu Apple ID como equipo
+4. Build & Run (Cmd+R)
 
-### Inventario diario
-- Registro de stock inicial, ventas, stock final y precio por producto
-- Cálculo automático de importe (venta × precio)
-- Detección de discrepancias (final ≠ inicial - venta)
-- Agregar productos ad-hoc que no están en el catálogo
-- Selector de fecha
+> Con Apple ID gratuito, la app caduca a los 7 días y hay que reinstalar.
 
-### Múltiples tablas
-- Crear, renombrar y eliminar tablas (ej. "Barra", "Cocina", "Turno mañana")
-- Cada tabla tiene su sesión independiente
-- El catálogo es compartido entre todas las tablas
+---
 
-### Historial
-- Guardado de jornadas con fecha, tabla y detalle completo
-- Visualización de jornadas pasadas con desglose de importes y discrepancias
-- Edición de jornadas históricas
-- Eliminación con confirmación
+## Android
 
-### Exportación
-- **CSV**: genera archivo con columnas Tabla, Fecha, Producto, Inicial, Venta, Precio, Importe, Final
-- **PDF**: genera documento formateado con tabla HTML
+### Requisitos
 
-### Auto-guardado
-- La sesión actual se guarda automáticamente al modificar cualquier campo
-- Recordatorio de backup cada 7 guardados
+- Android 8.0+ (API 26)
+- Java 17
+- Android SDK 34 + Build Tools 34.0.0
 
-## Instalación
+### Arquitectura
 
-1. Clonar el repositorio:
-   ```bash
-   git clone https://github.com/tandori46001/venti.git
-   git checkout paco
-   ```
-2. Abrir `InventarioApp.xcodeproj` en Xcode
-3. Seleccionar un simulador o dispositivo iOS 17+
-4. Build & Run (⌘R)
+- **Kotlin + Jetpack Compose** para la interfaz
+- **Material 3** para el diseño
+- **mutableStateOf / mutableStateListOf** como capa reactiva
+- **SharedPreferences + Gson** para persistencia local
+
+### Estructura
+
+```
+android/app/src/main/java/com/inventario/app/
+├── MainActivity.kt              — Activity única, punto de entrada
+├── model/Models.kt              — CatalogProduct, JornadaEntry, Jornada, SavedSession
+├── data/DataStore.kt            — Lógica de negocio y persistencia (SharedPreferences)
+├── ui/ContentScreen.kt          — Router: Wizard o MainScreen
+├── ui/WizardScreen.kt           — Configuración inicial del catálogo
+├── ui/MainScreen.kt             — Pantalla principal (LazyColumn con todas las secciones)
+├── ui/EntryCard.kt              — Tarjeta de producto con campos editables
+├── ui/CatalogDialog.kt          — Dialog de gestión del catálogo
+├── ui/HistoryDialog.kt          — Dialog de historial + detalle
+├── ui/Theme.kt                  — Tema Material 3
+└── export/Exporters.kt          — Generación de PDF
+```
+
+### Compilar APK
+
+```bash
+cd android
+
+# Configurar SDK (ajustar ruta según tu sistema)
+echo "sdk.dir=/path/to/android/sdk" > local.properties
+
+# Compilar
+./gradlew assembleDebug
+```
+
+El APK se genera en: `android/app/build/outputs/apk/debug/app-debug.apk`
+
+### Instalar en teléfono Android
+
+1. Enviar el APK por WhatsApp, email o cable USB
+2. En el teléfono: Ajustes → Seguridad → Permitir "Instalar desde fuentes desconocidas"
+3. Abrir el APK y pulsar Instalar
+
+---
 
 ## Uso
 
@@ -86,3 +121,9 @@ InventarioApp/
 4. Rellena los campos de inventario diario (Inicial, Venta, Final)
 5. Pulsa **Guardar día** para registrar la jornada en el historial
 6. Usa los botones **CSV** o **PDF** para exportar los datos
+
+---
+
+## Documentación
+
+Ver [PRD.md](PRD.md) para la especificación técnica completa: modelos de datos, claves de persistencia, edge cases, flujos de UI y tabla de equivalencias iOS/Android.

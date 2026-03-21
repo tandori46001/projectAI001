@@ -1,63 +1,124 @@
 import SwiftUI
 
 struct MainView: View {
-    @Environment(DataStore.self) private var store
+    @EnvironmentObject var store: DataStore
 
+    // Sheet states
     @State private var showCatalog = false
-    @State private var showHistorial = false
-    @State private var showShareSheet = false
+    @State private var showHistory = false
+
+    // Alert states
+    @State private var showNewTable = false
+    @State private var showRenameTable = false
+    @State private var showDeleteTableConfirm = false
+    @State private var showLimpiarConfirm = false
+    @State private var showSavedAlert = false
+    @State private var savedMessage = ""
+    @State private var alertInput = ""
+
+    // Export
     @State private var shareItems: [Any] = []
-    @State private var showSaveAlert = false
-    @State private var showBackupReminder = false
-    @State private var showClearAlert = false
-    @State private var showNewTableAlert = false
-    @State private var showRenameTableAlert = false
-    @State private var showDeleteTableAlert = false
-    @State private var newTableName = ""
-    @State private var renameTableName = ""
-    @State private var showImporteDetail = false
-    @State private var showDiscrepanciaDetail = false
+    @State private var showShareSheet = false
 
     var body: some View {
-        @Bindable var store = store
         NavigationStack {
             ScrollView {
-                VStack(spacing: 16) {
-                    // a) Table selector
-                    tableSelector
+                VStack(alignment: .leading, spacing: 16) {
+                    // ── 1. TABLE SELECTOR ──
+                    tableSelectorSection
 
-                    // b) Historical editing banner
+                    // ── 2. EDIT BANNER ──
                     if store.isEditingHistorical {
                         editBanner
                     }
 
-                    // c) Date picker
-                    datePicker
+                    // ── 3. DATE ──
+                    dateSection
 
-                    // d) Product cards
+                    Divider()
+
+                    // ── 4. INVENTORY ENTRIES ──
                     entriesSection
 
-                    // e) Add product button
-                    addProductButton
+                    // ── 5. ADD PRODUCT ──
+                    Button {
+                        store.addEntry()
+                    } label: {
+                        Label("Agregar producto", systemImage: "plus")
+                            .font(.subheadline)
+                    }
+                    .padding(.vertical, 4)
 
-                    Divider().padding(.horizontal)
+                    Divider()
 
-                    // f) Summary
+                    // ── 6. SUMMARY ──
                     summarySection
 
-                    Divider().padding(.horizontal)
+                    Divider()
 
-                    // g) Action buttons
-                    actionButtons
+                    // ── 7. ACTION BUTTONS ──
+                    actionsSection
 
-                    Divider().padding(.horizontal)
+                    Divider()
 
-                    // h) History preview
-                    historyPreview
+                    // ── 8. HISTORY ──
+                    historySection
                 }
-                .padding(.bottom, 30)
+                .padding()
             }
             .navigationTitle("Inventario")
+            .sheet(isPresented: $showCatalog) {
+                CatalogSheet()
+            }
+            .sheet(isPresented: $showHistory) {
+                HistorySheet()
+            }
+            .sheet(isPresented: $showShareSheet) {
+                ShareSheet(items: shareItems)
+            }
+            .alert("Nueva tabla", isPresented: $showNewTable) {
+                TextField("Nombre", text: $alertInput)
+                Button("Crear") {
+                    _ = store.addTable(name: alertInput)
+                    alertInput = ""
+                }
+                Button("Cancelar", role: .cancel) { alertInput = "" }
+            }
+            .alert("Renombrar tabla", isPresented: $showRenameTable) {
+                TextField("Nuevo nombre", text: $alertInput)
+                Button("Renombrar") {
+                    _ = store.renameTable(newName: alertInput)
+                    alertInput = ""
+                }
+                Button("Cancelar", role: .cancel) { alertInput = "" }
+            }
+            .alert("¿Eliminar tabla?", isPresented: $showDeleteTableConfirm) {
+                Button("Eliminar", role: .destructive) {
+                    _ = store.deleteTable()
+                }
+                Button("Cancelar", role: .cancel) {}
+            } message: {
+                Text("Se eliminará \"\(store.activeTable)\" y sus datos actuales. El historial guardado se conserva.")
+            }
+            .alert("¿Limpiar?", isPresented: $showLimpiarConfirm) {
+                Button("Limpiar", role: .destructive) {
+                    store.limpiar()
+                }
+                Button("Cancelar", role: .cancel) {}
+            } message: {
+                Text("Se restablecerán los datos de la jornada actual con los productos del catálogo.")
+            }
+            .alert("Guardado", isPresented: $showSavedAlert) {
+                Button("OK") {}
+            } message: {
+                Text(savedMessage)
+            }
+            .alert("Exportar CSV", isPresented: $showBackupBinding) {
+                Button("Exportar CSV") { exportCSV() }
+                Button("Entendido", role: .cancel) {}
+            } message: {
+                Text("Recordatorio: exporta tu historial periódicamente para no perder datos.")
+            }
             .onChange(of: store.entries) { _, _ in
                 store.saveCurrentSession()
             }
@@ -65,117 +126,56 @@ struct MainView: View {
                 store.saveCurrentSession()
             }
         }
-        .sheet(isPresented: $showCatalog) {
-            CatalogView()
-        }
-        .sheet(isPresented: $showHistorial) {
-            HistorialView()
-        }
-        .sheet(isPresented: $showShareSheet) {
-            ShareSheet(items: shareItems)
-        }
-        .alert("Guardar jornada", isPresented: $showSaveAlert) {
-            Button("Guardar", role: .destructive) {
-                let needsBackup = store.guardarJornada()
-                if needsBackup {
-                    showBackupReminder = true
-                }
-            }
-            Button("Cancelar", role: .cancel) {}
-        } message: {
-            Text("Se guardará la jornada del \(store.fechaString) en la tabla \"\(store.activeTable)\". Si ya existe una jornada con la misma fecha y tabla, se reemplazará.")
-        }
-        .alert("Recordatorio de backup", isPresented: $showBackupReminder) {
-            Button("Exportar CSV") { exportCSV() }
-            Button("Más tarde", role: .cancel) {}
-        } message: {
-            Text("Llevas varios guardados. Te recomendamos exportar un CSV como respaldo.")
-        }
-        .alert("Limpiar sesión", isPresented: $showClearAlert) {
-            Button("Limpiar", role: .destructive) {
-                store.resetEntries()
-            }
-            Button("Cancelar", role: .cancel) {}
-        } message: {
-            Text("Se restablecerán todos los campos con los productos del catálogo y valores vacíos.")
-        }
-        .alert("Nueva tabla", isPresented: $showNewTableAlert) {
-            TextField("Nombre", text: $newTableName)
-            Button("Crear") {
-                store.addTable(name: newTableName.trimmingCharacters(in: .whitespaces))
-                newTableName = ""
-            }
-            Button("Cancelar", role: .cancel) { newTableName = "" }
-        }
-        .alert("Renombrar tabla", isPresented: $showRenameTableAlert) {
-            TextField("Nuevo nombre", text: $renameTableName)
-            Button("Renombrar") {
-                store.renameTable(from: store.activeTable, to: renameTableName.trimmingCharacters(in: .whitespaces))
-                renameTableName = ""
-            }
-            Button("Cancelar", role: .cancel) { renameTableName = "" }
-        }
-        .alert("Eliminar tabla", isPresented: $showDeleteTableAlert) {
-            Button("Eliminar", role: .destructive) {
-                store.deleteTable(store.activeTable)
-            }
-            Button("Cancelar", role: .cancel) {}
-        } message: {
-            Text("Se eliminará la tabla \"\(store.activeTable)\" y su sesión actual. Las jornadas del historial no se eliminarán.")
-        }
+    }
+
+    private var showBackupBinding: Binding<Bool> {
+        $store.showBackupReminder
     }
 
     // MARK: - Table Selector
-    private var tableSelector: some View {
-        VStack(spacing: 8) {
+    private var tableSelectorSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text("Tabla:")
-                    .font(.headline)
+                    .font(.subheadline.bold())
+
                 Picker("Tabla", selection: Binding(
                     get: { store.activeTable },
                     set: { store.switchTable(to: $0) }
                 )) {
-                    ForEach(store.tables, id: \.self) { table in
-                        Text(table).tag(table)
+                    ForEach(store.tables, id: \.self) { t in
+                        Text(t).tag(t)
                     }
                 }
                 .pickerStyle(.menu)
+
                 Spacer()
             }
+
             HStack(spacing: 8) {
-                Button {
-                    showNewTableAlert = true
-                } label: {
-                    Label("Nueva", systemImage: "plus")
-                        .font(.caption)
+                Button("+ Nueva") {
+                    alertInput = ""
+                    showNewTable = true
                 }
+                .font(.caption)
                 .buttonStyle(.bordered)
-                .controlSize(.small)
 
-                Button {
-                    renameTableName = store.activeTable
-                    showRenameTableAlert = true
-                } label: {
-                    Label("Renombrar", systemImage: "pencil")
-                        .font(.caption)
+                Button("Renombrar") {
+                    alertInput = store.activeTable
+                    showRenameTable = true
                 }
+                .font(.caption)
                 .buttonStyle(.bordered)
-                .controlSize(.small)
 
-                Button {
-                    showDeleteTableAlert = true
-                } label: {
-                    Label("Eliminar", systemImage: "trash")
-                        .font(.caption)
+                Button("Eliminar") {
+                    showDeleteTableConfirm = true
                 }
+                .font(.caption)
                 .buttonStyle(.bordered)
-                .controlSize(.small)
+                .tint(.red)
                 .disabled(store.tables.count <= 1)
-
-                Spacer()
             }
         }
-        .padding(.horizontal)
     }
 
     // MARK: - Edit Banner
@@ -183,188 +183,173 @@ struct MainView: View {
         HStack {
             Image(systemName: "exclamationmark.triangle.fill")
                 .foregroundStyle(.orange)
-            Text("Editando jornada del historial")
-                .font(.subheadline.bold())
+            Text("Editando jornada histórica")
+                .font(.caption)
             Spacer()
             Button("Cancelar") {
-                store.cancelEditing()
+                store.cancelarEdicion()
+                store.loadCurrentSession()
             }
-            .font(.subheadline)
+            .font(.caption)
             .buttonStyle(.bordered)
-            .controlSize(.small)
         }
-        .padding()
-        .background(Color.orange.opacity(0.1))
-        .clipShape(RoundedRectangle(cornerRadius: 10))
-        .padding(.horizontal)
+        .padding(10)
+        .background(Color.yellow.opacity(0.15))
+        .cornerRadius(8)
     }
 
-    // MARK: - Date Picker
-    private var datePicker: some View {
-        @Bindable var store = store
-        return DatePicker("Fecha", selection: $store.currentFecha, displayedComponents: .date)
-            .datePickerStyle(.compact)
-            .padding(.horizontal)
+    // MARK: - Date
+    private var dateSection: some View {
+        DatePicker(
+            "Fecha:",
+            selection: fechaBinding,
+            displayedComponents: .date
+        )
+        .datePickerStyle(.compact)
+        .font(.subheadline.bold())
+    }
+
+    private var fechaBinding: Binding<Date> {
+        Binding(
+            get: { DataStore.dateFromString(store.currentFecha) },
+            set: { store.currentFecha = DataStore.stringFromDate($0) }
+        )
     }
 
     // MARK: - Entries
     private var entriesSection: some View {
-        @Bindable var store = store
-        return LazyVStack(spacing: 12) {
-            ForEach($store.entries) { $entry in
-                EntryCard(entry: $entry) {
-                    if let idx = store.entries.firstIndex(where: { $0.id == entry.id }) {
-                        store.entries.remove(at: idx)
+        VStack(spacing: 12) {
+            if store.entries.isEmpty {
+                Text("No hay productos. Agrega uno o configura el catálogo.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding()
+            } else {
+                ForEach($store.entries) { $entry in
+                    EntryCard(entry: $entry) {
+                        store.removeEntry(id: entry.id)
                     }
                 }
             }
         }
-        .padding(.horizontal)
-    }
-
-    // MARK: - Add Product
-    private var addProductButton: some View {
-        Button {
-            store.entries.append(JornadaEntry(
-                nombre: "",
-                inicial: "",
-                venta: "",
-                precio: "",
-                finalVal: ""
-            ))
-        } label: {
-            Label("Agregar producto", systemImage: "plus.circle")
-                .frame(maxWidth: .infinity)
-        }
-        .buttonStyle(.bordered)
-        .padding(.horizontal)
     }
 
     // MARK: - Summary
     private var summarySection: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text("Total Importe:")
                     .font(.headline)
                 Spacer()
-                Text(String(format: "%.2f €", store.totalImporte))
-                    .font(.title2.bold())
-                    .foregroundStyle(.green)
+                Text(String(format: "%.2f", store.totalImporte))
+                    .font(.headline.monospacedDigit())
             }
 
-            // Detalle importe
-            DisclosureGroup("Detalle Importe (\(store.entriesConVenta.count))", isExpanded: $showImporteDetail) {
-                ForEach(store.entriesConVenta) { entry in
-                    HStack {
-                        Text(entry.nombre)
-                            .font(.subheadline)
-                        Spacer()
-                        Text(String(format: "%.2f €", entry.importe))
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            }
-
-            // Discrepancias
-            if !store.entriesConDiscrepancia.isEmpty {
-                DisclosureGroup(isExpanded: $showDiscrepanciaDetail) {
-                    ForEach(store.entriesConDiscrepancia) { entry in
+            if !store.detalleImporte.isEmpty {
+                DisclosureGroup("Detalle Importe") {
+                    ForEach(store.detalleImporte, id: \.0) { nombre, importe in
                         HStack {
-                            Text(entry.nombre)
-                                .font(.subheadline)
+                            Text(nombre)
+                                .font(.caption)
                             Spacer()
-                            Text(String(format: "%+.2f", entry.discrepancia ?? 0))
-                                .font(.subheadline.bold())
-                                .foregroundStyle(.red)
+                            Text(String(format: "%.2f", importe))
+                                .font(.caption.monospacedDigit())
                         }
                     }
-                } label: {
-                    Text("Discrepancias (\(store.entriesConDiscrepancia.count))")
-                        .foregroundStyle(.red)
                 }
+                .font(.subheadline)
+            }
+
+            if !store.discrepancias.isEmpty {
+                DisclosureGroup("Discrepancias") {
+                    ForEach(store.discrepancias, id: \.0) { nombre, diff in
+                        HStack {
+                            Text("Atención: \(diff > 0 ? "+" : "")\(String(format: "%.2f", diff)) \(nombre)")
+                                .font(.caption)
+                                .foregroundStyle(.red)
+                            Spacer()
+                        }
+                    }
+                }
+                .font(.subheadline)
+                .foregroundStyle(.red)
             }
         }
-        .padding(.horizontal)
     }
 
-    // MARK: - Action Buttons
-    private var actionButtons: some View {
+    // MARK: - Actions
+    private var actionsSection: some View {
         VStack(spacing: 10) {
+            // Primary action
             Button {
-                showSaveAlert = true
+                guardarDia()
             } label: {
                 Label("Guardar día", systemImage: "checkmark.circle.fill")
-                    .font(.headline)
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
             .tint(.green)
 
-            HStack(spacing: 10) {
-                Button {
-                    exportCSV()
-                } label: {
+            // Secondary actions grid
+            LazyVGrid(columns: [
+                GridItem(.flexible()),
+                GridItem(.flexible()),
+            ], spacing: 8) {
+                Button { exportCSV() } label: {
                     Label("CSV", systemImage: "doc.text")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
 
-                Button {
-                    exportPDF()
-                } label: {
+                Button { exportPDF() } label: {
                     Label("PDF", systemImage: "doc.richtext")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
-            }
 
-            HStack(spacing: 10) {
-                Button {
-                    showCatalog = true
-                } label: {
+                Button { showCatalog = true } label: {
                     Label("Catálogo", systemImage: "list.bullet")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
 
-                Button {
-                    showHistorial = true
-                } label: {
+                Button { showHistory = true } label: {
                     Label("Historial", systemImage: "clock")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
             }
 
-            Button(role: .destructive) {
-                showClearAlert = true
+            Button {
+                showLimpiarConfirm = true
             } label: {
                 Label("Limpiar", systemImage: "trash")
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.bordered)
+            .tint(.red)
         }
-        .padding(.horizontal)
     }
 
-    // MARK: - History Preview
-    private var historyPreview: some View {
+    // MARK: - History (inline preview)
+    private var historySection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Últimas jornadas")
-                .font(.headline)
-                .padding(.horizontal)
+            HStack {
+                Text("Historial de jornadas")
+                    .font(.headline)
+                Spacer()
+                Button("Ver todo") { showHistory = true }
+                    .font(.caption)
+            }
 
-            let recent = store.historial.sorted { $0.fecha > $1.fecha }.prefix(5)
-            if recent.isEmpty {
-                Text("Sin jornadas guardadas")
-                    .font(.subheadline)
+            if store.historial.isEmpty {
+                Text("Sin jornadas registradas.")
+                    .font(.caption)
                     .foregroundStyle(.secondary)
-                    .padding(.horizontal)
             } else {
-                ForEach(Array(recent)) { jornada in
+                ForEach(store.historial.prefix(5)) { jornada in
                     HStack {
-                        VStack(alignment: .leading) {
+                        VStack(alignment: .leading, spacing: 2) {
                             Text(jornada.fecha)
                                 .font(.subheadline.bold())
                             Text(jornada.tabla)
@@ -372,39 +357,38 @@ struct MainView: View {
                                 .foregroundStyle(.secondary)
                         }
                         Spacer()
-                        Text(String(format: "%.2f €", jornada.totalImporte))
-                            .font(.subheadline)
+                        Text(String(format: "%.2f", jornada.totalImporte))
+                            .font(.subheadline.monospacedDigit())
                     }
-                    .padding(.horizontal)
-                }
-
-                if store.historial.count > 5 {
-                    Button("Ver todo") {
-                        showHistorial = true
-                    }
-                    .font(.subheadline)
-                    .padding(.horizontal)
+                    .padding(.vertical, 4)
                 }
             }
         }
     }
 
-    // MARK: - Export
+    // MARK: - Actions
+    private func guardarDia() {
+        if let error = store.guardarDia() {
+            savedMessage = error
+        } else {
+            savedMessage = "Jornada del \(store.currentFecha) (\(store.activeTable)) guardada."
+        }
+        showSavedAlert = true
+    }
+
     private func exportCSV() {
         let csv = store.generateCSV()
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent("inventario_\(store.fechaString).csv")
+        let filename = "inventario_\(store.activeTable)_\(store.currentFecha).csv"
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(filename)
         try? csv.write(to: url, atomically: true, encoding: .utf8)
         shareItems = [url]
         showShareSheet = true
     }
 
     private func exportPDF() {
-        let html = store.generatePDFHTML()
-        generatePDFFromHTML(html) { url in
-            if let url {
-                shareItems = [url]
-                showShareSheet = true
-            }
+        if let url = Exporters.generatePDF(store: store) {
+            shareItems = [url]
+            showShareSheet = true
         }
     }
 }
@@ -416,72 +400,94 @@ struct EntryCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
+            // Header: product name + delete
             HStack {
                 if entry.nombre.isEmpty {
-                    TextField("Nombre producto", text: $entry.nombre)
-                        .font(.headline)
+                    TextField("Producto", text: $entry.nombre)
+                        .font(.subheadline.bold())
                 } else {
                     Text(entry.nombre)
-                        .font(.headline)
+                        .font(.subheadline.bold())
+                        .lineLimit(1)
                 }
                 Spacer()
-                Button(role: .destructive) {
-                    onDelete()
-                } label: {
+                Button(role: .destructive) { onDelete() } label: {
                     Image(systemName: "xmark.circle.fill")
                         .foregroundStyle(.red.opacity(0.7))
                 }
                 .buttonStyle(.plain)
             }
 
+            // Fields row 1: Inicial, Venta, Final
             HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Inicial").font(.caption2).foregroundStyle(.secondary)
                     TextField("0", text: $entry.inicial)
                         .keyboardType(.decimalPad)
                         .textFieldStyle(.roundedBorder)
+                        .font(.subheadline.monospacedDigit())
                 }
+
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Venta").font(.caption2).foregroundStyle(.secondary)
                     TextField("0", text: $entry.venta)
                         .keyboardType(.decimalPad)
                         .textFieldStyle(.roundedBorder)
+                        .font(.subheadline.monospacedDigit())
                 }
+
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Final").font(.caption2).foregroundStyle(.secondary)
                     TextField("—", text: $entry.finalVal)
                         .keyboardType(.decimalPad)
                         .textFieldStyle(.roundedBorder)
+                        .font(.subheadline.monospacedDigit())
                 }
             }
 
+            // Fields row 2: Precio, Importe
             HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Precio").font(.caption2).foregroundStyle(.secondary)
-                    TextField("0.00", text: $entry.precio)
+                    TextField("0", text: $entry.precio)
                         .keyboardType(.decimalPad)
                         .textFieldStyle(.roundedBorder)
-                        .frame(width: 80)
+                        .font(.subheadline.monospacedDigit())
                 }
-                Spacer()
-                VStack(alignment: .trailing, spacing: 2) {
+
+                VStack(alignment: .leading, spacing: 2) {
                     Text("Importe").font(.caption2).foregroundStyle(.secondary)
-                    Text(String(format: "%.2f €", entry.importe))
-                        .font(.body.bold())
-                        .foregroundStyle(.green)
+                    Text(entry.importe > 0 ? String(format: "%.2f", entry.importe) : "—")
+                        .font(.subheadline.bold().monospacedDigit())
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.vertical, 6)
                 }
+
+                // Discrepancy indicator
                 if let disc = entry.discrepancia {
-                    VStack(alignment: .trailing, spacing: 2) {
-                        Text("Discrepancia").font(.caption2).foregroundStyle(.red)
-                        Text(String(format: "%+.2f", disc))
-                            .font(.body.bold())
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Discr.").font(.caption2).foregroundStyle(.red)
+                        Text("\(disc > 0 ? "+" : "")\(String(format: "%.2f", disc))")
+                            .font(.subheadline.bold().monospacedDigit())
                             .foregroundStyle(.red)
+                            .padding(.vertical, 6)
                     }
                 }
             }
         }
-        .padding()
+        .padding(12)
         .background(Color(.systemGray6))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .cornerRadius(10)
     }
+}
+
+// MARK: - Share Sheet (UIKit wrapper)
+struct ShareSheet: UIViewControllerRepresentable {
+    let items: [Any]
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: items, applicationActivities: nil)
+    }
+
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }

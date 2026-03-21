@@ -1,10 +1,10 @@
 import SwiftUI
 
 struct ContentView: View {
-    @Environment(DataStore.self) private var store
+    @EnvironmentObject var store: DataStore
 
     var body: some View {
-        if store.catalog.isEmpty {
+        if store.catalogIsEmpty {
             WizardView()
         } else {
             MainView()
